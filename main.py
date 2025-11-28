@@ -47,9 +47,10 @@ DARK_CREAM = (240, 235, 225)
 
 class GameState(Enum):
     MAIN_MENU = 1
-    GAME = 2
-    GAME_OVER = 3
-    WIN = 4
+    DIFFICULTY_MENU = 2
+    GAME = 3
+    GAME_OVER = 4
+    WIN = 5
 
 class StudentActivity(Enum):
     NORMAL = 1
@@ -57,6 +58,12 @@ class StudentActivity(Enum):
     GAMES = 3
     SLEEP = 4
     EAT = 5
+
+class Difficulty(Enum):
+    EASY = 1
+    MEDIUM = 2
+    HARD = 3
+    IMPOSSIBLE = 4
 
 @dataclass
 class Student:
@@ -255,6 +262,18 @@ class Game:
         self.buttons: List[Button] = []
         self.messages: List[Tuple[str, int]] = []
         
+        # Параметры сложности
+        self.difficulty = Difficulty.EASY
+        self.teacher_look_chance = 15  # Вероятность в процентах
+        
+        # Словарь параметров сложности
+        self.difficulty_settings = {
+            Difficulty.EASY: {"time": 30, "chance": 15, "name": "ЛЕГКИЙ", "description": "30 сек, 15% риск"},
+            Difficulty.MEDIUM: {"time": 45, "chance": 30, "name": "СРЕДНИЙ", "description": "45 сек, 30% риск"},
+            Difficulty.HARD: {"time": 45, "chance": 40, "name": "СЛОЖНЫЙ", "description": "45 сек, 40% риск"},
+            Difficulty.IMPOSSIBLE: {"time": 50, "chance": 50, "name": "НЕВОЗМОЖНЫЙ", "description": "50 сек, 50% риск"},
+        }
+        
         self.create_menu_buttons()
         
     def create_menu_buttons(self):
@@ -269,6 +288,22 @@ class Game:
             Button(x, start_y, button_width, button_height, "НАЧАТЬ ИГРУ", action="start"),
             Button(x, start_y + spacing, button_width, button_height, "ПРАВИЛА", action="rules"),
             Button(x, start_y + spacing * 2, button_width, button_height, "ВЫХОД", action="exit"),
+        ]
+    
+    def create_difficulty_buttons(self):
+        """Создать кнопки выбора сложности"""
+        button_width = 280
+        button_height = 70
+        start_y = 150
+        spacing = 110
+        x = SCREEN_WIDTH // 2 - button_width // 2
+        
+        self.buttons = [
+            Button(x, start_y, button_width, button_height, "ЛЕГКИЙ\n30 сек, 15% риск", action="easy"),
+            Button(x, start_y + spacing, button_width, button_height, "СРЕДНИЙ\n45 сек, 30% риск", action="medium"),
+            Button(x, start_y + spacing * 2, button_width, button_height, "СЛОЖНЫЙ\n45 сек, 40% риск", action="hard"),
+            Button(x, start_y + spacing * 3, button_width, button_height, "НЕВОЗМОЖНЫЙ\n50 сек, 50% риск", action="impossible"),
+            Button(x, start_y + spacing * 4, button_width, button_height, "← НАЗАД", action="back"),
         ]
     
     def create_game_buttons(self):
@@ -338,15 +373,23 @@ class Game:
         self.teacher = Teacher()
         self.score = 0
         self.game_time = 0
-        self.time_remaining = 30 * 60  # 30 секунд
+        
+        # Установить параметры в зависимости от сложности
+        settings = self.difficulty_settings[self.difficulty]
+        self.time_remaining = settings["time"] * 60  # Перевести в фреймы
+        self.teacher_look_chance = settings["chance"]
+        
         self.messages = []
         self.create_game_buttons()
-        self.add_message("🎓 Ты на экзамене в УТМ! Списывай и не попадайся! 🎓", 120)
+        
+        difficulty_name = settings["name"]
+        self.add_message(f"🎓 {difficulty_name} уровень! Списывай и не попадайся! 🎓", 120)
         self.schedule_teacher_actions()
     
     def schedule_teacher_actions(self):
         """Запланировать движения учителя"""
         delay = random.randint(2, 5)
+        # Вероятность того, что учитель посмотрит на студента
         look_duration = random.randint(60, 180)
         self.teacher.look_timer = delay * FPS
         self.teacher.look_duration = look_duration
@@ -382,6 +425,29 @@ class Game:
         # Декоративная линия
         pygame.draw.line(self.screen, UTM_GOLD, (SCREEN_WIDTH // 2 - 80, 200), 
                         (SCREEN_WIDTH // 2 + 80, 200), 2)
+        
+        # Кнопки
+        for button in self.buttons:
+            button.draw(self.screen, self.font_small)
+    
+    def draw_difficulty_menu(self):
+        """Отрисовать меню выбора сложности"""
+        # Градиентный фон
+        for y in range(SCREEN_HEIGHT):
+            color_val = int(UTM_DARK_PURPLE[0] + (UTM_PURPLE[0] - UTM_DARK_PURPLE[0]) * y / SCREEN_HEIGHT)
+            pygame.draw.line(self.screen, 
+                           (color_val, int(UTM_DARK_PURPLE[1] + (UTM_PURPLE[1] - UTM_DARK_PURPLE[1]) * y / SCREEN_HEIGHT), 
+                            int(UTM_DARK_PURPLE[2] + (UTM_PURPLE[2] - UTM_DARK_PURPLE[2]) * y / SCREEN_HEIGHT)),
+                           (0, y), (SCREEN_WIDTH, y))
+        
+        # Заголовок
+        title = self.font_large.render("ВЫБЕРИ СЛОЖНОСТЬ", True, UTM_GOLD)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 60))
+        self.screen.blit(title, title_rect)
+        
+        # Декоративная линия
+        pygame.draw.line(self.screen, UTM_GOLD, (SCREEN_WIDTH // 2 - 100, 100), 
+                        (SCREEN_WIDTH // 2 + 100, 100), 2)
         
         # Кнопки
         for button in self.buttons:
@@ -533,11 +599,31 @@ class Game:
         for button in self.buttons:
             if button.is_clicked(pos):
                 if button.action == "start":
-                    self.start_game()
+                    self.state = GameState.DIFFICULTY_MENU
+                    self.create_difficulty_buttons()
                 elif button.action == "rules":
                     self.add_message("📖 Правила: Скрывай активности! Если учитель увидит - ты поймана! 📖", 240)
                 elif button.action == "exit":
                     return False
+        return True
+    
+    def handle_difficulty_click(self, pos: Tuple[int, int]):
+        """Обработить клик в меню выбора сложности"""
+        difficulty_map = {
+            "easy": Difficulty.EASY,
+            "medium": Difficulty.MEDIUM,
+            "hard": Difficulty.HARD,
+            "impossible": Difficulty.IMPOSSIBLE,
+        }
+        
+        for button in self.buttons:
+            if button.is_clicked(pos):
+                if button.action in difficulty_map:
+                    self.difficulty = difficulty_map[button.action]
+                    self.start_game()
+                elif button.action == "back":
+                    self.state = GameState.MAIN_MENU
+                    self.create_menu_buttons()
         return True
     
     def handle_game_click(self, pos: Tuple[int, int]):
@@ -614,6 +700,8 @@ class Game:
         """Обработить клик мыши"""
         if self.state == GameState.MAIN_MENU:
             return self.handle_menu_click(pos)
+        elif self.state == GameState.DIFFICULTY_MENU:
+            return self.handle_difficulty_click(pos)
         elif self.state == GameState.GAME:
             self.handle_game_click(pos)
         elif self.state in [GameState.GAME_OVER, GameState.WIN]:
@@ -670,14 +758,16 @@ class Game:
             if self.teacher.look_timer > 0:
                 self.teacher.look_timer -= 1
             else:
-                # Учитель начинает смотреть
-                self.teacher.looking_at_student = True
-                
-                # Проверить - поймана ли студентка?
-                if self.student.activity_duration > 0:
-                    self.add_message("😱 ПОЙМАНА! Учитель заметил активность!", 180)
-                    self.state = GameState.GAME_OVER
-                    return
+                # Проверить вероятность того, что учитель посмотрит
+                if random.randint(1, 100) <= self.teacher_look_chance:
+                    # Учитель начинает смотреть
+                    self.teacher.looking_at_student = True
+                    
+                    # Проверить - поймана ли студентка?
+                    if self.student.activity_duration > 0:
+                        self.add_message("😱 ПОЙМАНА! Учитель заметил активность!", 180)
+                        self.state = GameState.GAME_OVER
+                        return
                 
                 if self.teacher.look_duration > 0:
                     self.teacher.look_duration -= 1
@@ -695,6 +785,8 @@ class Game:
         """Отрисовать кадр"""
         if self.state == GameState.MAIN_MENU:
             self.draw_main_menu()
+        elif self.state == GameState.DIFFICULTY_MENU:
+            self.draw_difficulty_menu()
         elif self.state == GameState.GAME:
             self.draw_game()
         elif self.state == GameState.GAME_OVER:
