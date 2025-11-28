@@ -8,12 +8,20 @@ from typing import List, Tuple, Optional
 # Инициализация Pygame
 pygame.init()
 
-# Константы - адаптация под разные размеры экрана
-import os
-SCREEN_WIDTH = 540 if os.environ.get('MOBILE', False) else 1400
-SCREEN_HEIGHT = 960 if os.environ.get('MOBILE', False) else 800
+# Константы - мобильный формат 9:16 (540x960)
+SCREEN_WIDTH = 540
+SCREEN_HEIGHT = 960
 FPS = 60
-IS_MOBILE = SCREEN_WIDTH < 700
+IS_MOBILE = True
+
+# Границы безопасной области для элементов (отступ от краев)
+SAFE_MARGIN = 5
+SAFE_LEFT = SAFE_MARGIN
+SAFE_RIGHT = SCREEN_WIDTH - SAFE_MARGIN
+SAFE_TOP = SAFE_MARGIN
+SAFE_BOTTOM = SCREEN_HEIGHT - SAFE_MARGIN
+SAFE_WIDTH = SAFE_RIGHT - SAFE_LEFT
+SAFE_HEIGHT = SAFE_BOTTOM - SAFE_TOP
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -211,8 +219,8 @@ class Button:
         # Многострочный текст
         lines = self.text.split('\n')
         
-        # Для мобильных - мельче, для десктопа - крупнее
-        line_spacing = 18 if IS_MOBILE else 22
+        # Мобильные размеры - мельче шрифт для узких кнопок
+        line_spacing = 16
         total_height = len(lines) * line_spacing
         y_start = self.rect.centery - total_height // 2
         
@@ -233,15 +241,10 @@ class Game:
         pygame.display.set_caption("UTM Cheating Simulator - Списывай, пока не видит!")
         self.clock = pygame.time.Clock()
         
-        # Адаптивные размеры шрифтов
-        if IS_MOBILE:
-            self.font_large = pygame.font.Font(None, 40)
-            self.font_medium = pygame.font.Font(None, 28)
-            self.font_small = pygame.font.Font(None, 20)
-        else:
-            self.font_large = pygame.font.Font(None, 54)
-            self.font_medium = pygame.font.Font(None, 36)
-            self.font_small = pygame.font.Font(None, 24)
+        # Адаптивные размеры шрифтов для мобильного
+        self.font_large = pygame.font.Font(None, 48)
+        self.font_medium = pygame.font.Font(None, 32)
+        self.font_small = pygame.font.Font(None, 24)
         
         self.state = GameState.MAIN_MENU
         self.student = Student()
@@ -256,18 +259,11 @@ class Game:
         
     def create_menu_buttons(self):
         """Создать кнопки главного меню"""
-        if IS_MOBILE:
-            button_width = 220
-            button_height = 60
-            start_y = 150
-            spacing = 90
-            x = SCREEN_WIDTH // 2 - button_width // 2
-        else:
-            button_width = 400
-            button_height = 80
-            start_y = 300
-            spacing = 120
-            x = SCREEN_WIDTH // 2 - button_width // 2
+        button_width = 280
+        button_height = 70
+        start_y = 200
+        spacing = 110
+        x = SCREEN_WIDTH // 2 - button_width // 2
         
         self.buttons = [
             Button(x, start_y, button_width, button_height, "НАЧАТЬ ИГРУ", action="start"),
@@ -277,18 +273,32 @@ class Game:
     
     def create_game_buttons(self):
         """Создать кнопки активностей в игре"""
-        if IS_MOBILE:
-            button_width = 100
-            button_height = 80
-            start_x = 20
-            start_y = SCREEN_HEIGHT - 120
-            spacing_x = 108
-        else:
-            button_width = 150
-            button_height = 100
-            start_x = 50
-            start_y = 650
-            spacing_x = 160
+        button_width = 90
+        button_height = 70
+        start_y = 800
+        spacing_x = 100
+        
+        # Расчет начальной X позиции для центрирования
+        total_width = button_width * 5 + spacing_x * 4
+        start_x = (SCREEN_WIDTH - total_width) // 2
+        
+        # ЖЕСТКИЕ ОГРАНИЧЕНИЯ: кнопки не должны выходить за экран
+        # Проверяем левую границу
+        if start_x < SAFE_LEFT:
+            start_x = SAFE_LEFT
+        
+        # Проверяем правую границу (самая правая кнопка)
+        last_button_right = start_x + spacing_x * 4 + button_width
+        if last_button_right > SAFE_RIGHT:
+            start_x = SAFE_RIGHT - (spacing_x * 4 + button_width)
+        
+        # Проверяем нижнюю границу
+        if start_y + button_height > SAFE_BOTTOM:
+            start_y = SAFE_BOTTOM - button_height
+        
+        # Проверяем верхнюю границу
+        if start_y < SAFE_TOP:
+            start_y = SAFE_TOP
         
         self.buttons = [
             Button(start_x, start_y, button_width, button_height, "📝\nСПИСАТЬ\n3 сек", action="cheat"),
@@ -355,23 +365,23 @@ class Game:
                             int(UTM_PURPLE[2] + (UTM_DARK_PURPLE[2] - UTM_PURPLE[2]) * y / SCREEN_HEIGHT)),
                            (0, y), (SCREEN_WIDTH, y))
         
-        # Заголовок
+        # Заголовок (большой)
         title = self.font_large.render("UTM CHEATING", True, UTM_GOLD)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 50 if IS_MOBILE else 80))
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 80))
         self.screen.blit(title, title_rect)
         
         title2 = self.font_medium.render("SIMULATOR", True, WHITE)
-        title2_rect = title2.get_rect(center=(SCREEN_WIDTH // 2, 100 if IS_MOBILE else 130))
+        title2_rect = title2.get_rect(center=(SCREEN_WIDTH // 2, 140))
         self.screen.blit(title2, title2_rect)
         
         # Подзаголовок
-        subtitle = self.font_small.render("Списывай пока не видит преподаватель!", True, YELLOW)
-        subtitle_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, 130 if IS_MOBILE else 180))
+        subtitle = self.font_small.render("Списывай пока не видит!", True, YELLOW)
+        subtitle_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, 180))
         self.screen.blit(subtitle, subtitle_rect)
         
         # Декоративная линия
-        pygame.draw.line(self.screen, UTM_GOLD, (SCREEN_WIDTH // 2 - 100, 140 if IS_MOBILE else 190), 
-                        (SCREEN_WIDTH // 2 + 100, 140 if IS_MOBILE else 190), 2)
+        pygame.draw.line(self.screen, UTM_GOLD, (SCREEN_WIDTH // 2 - 80, 200), 
+                        (SCREEN_WIDTH // 2 + 80, 200), 2)
         
         # Кнопки
         for button in self.buttons:
@@ -390,26 +400,20 @@ class Game:
                             int(LIGHT_BLUE[2] + (CREAM[2] - LIGHT_BLUE[2]) * y / (SCREEN_HEIGHT // 2))),
                            (0, y), (SCREEN_WIDTH, y))
         
-        if IS_MOBILE:
-            # Мобильный макет
-            # Парта учителя (компактно)
-            pygame.draw.rect(self.screen, LIGHT_BROWN, (SCREEN_WIDTH - 120, 10, 110, 80))
-            pygame.draw.rect(self.screen, BLACK, (SCREEN_WIDTH - 120, 10, 110, 80), 2)
-            
-            # Парта студента
-            pygame.draw.rect(self.screen, (200, 150, 100), (10, SCREEN_HEIGHT // 2 - 50, 150, 100))
-            pygame.draw.rect(self.screen, BLACK, (10, SCREEN_HEIGHT // 2 - 50, 150, 100), 2)
-            
-            # Преподаватель (маленький)
-            self.teacher.x = SCREEN_WIDTH - 60
-            self.teacher.y = 50
-        else:
-            # Десктопный макет
-            pygame.draw.rect(self.screen, LIGHT_BROWN, (850, 100, 300, 100))
-            pygame.draw.rect(self.screen, BLACK, (850, 100, 300, 100), 3)
-            
-            pygame.draw.rect(self.screen, (200, 150, 100), (50, 400, 250, 150))
-            pygame.draw.rect(self.screen, BLACK, (50, 400, 250, 150), 2)
+        # Мобильный макет (вертикальный)
+        # Парта учителя (вверху, маленькая)
+        pygame.draw.rect(self.screen, LIGHT_BROWN, (SCREEN_WIDTH - 130, 200, 120, 90))
+        pygame.draw.rect(self.screen, BLACK, (SCREEN_WIDTH - 130, 200, 120, 90), 2)
+        
+        # Парта студента (ниже, поближе к кнопкам)
+        pygame.draw.rect(self.screen, (200, 150, 100), (15, 600, 510, 120))
+        pygame.draw.rect(self.screen, BLACK, (15, 600, 510, 120), 2)
+        
+        # Позиции персонажей с ограничениями
+        self.student.x = max(SAFE_LEFT + 30, min(SAFE_RIGHT - 30, SCREEN_WIDTH // 2))
+        self.student.y = max(SAFE_TOP + 30, min(SAFE_BOTTOM - 60, 650))
+        self.teacher.x = max(SAFE_LEFT + 30, min(SAFE_RIGHT - 30, SCREEN_WIDTH - 70))
+        self.teacher.y = max(SAFE_TOP + 30, min(SAFE_BOTTOM - 80, 250))
         
         # Рисуем персонажей
         self.student.draw(self.screen)
@@ -421,78 +425,46 @@ class Game:
         # Сообщения
         self.draw_messages()
         
-        # Кнопки активностей
+        # Кнопки активностей (внизу, в линию)
         for button in self.buttons:
             button.draw(self.screen, self.font_small)
-        
-        # Инструкции
-        if not IS_MOBILE:
-            instruction_text = "Нажимай кнопки, чтобы скрыть активность, пока учитель не смотрит!"
-            instruction = self.font_small.render(instruction_text, True, RED)
-            instruction_rect = instruction.get_rect(center=(SCREEN_WIDTH // 2, 40))
-            self.screen.blit(instruction, instruction_rect)
     
     def draw_ui(self):
         """Отрисовать UI элементы"""
-        if IS_MOBILE:
-            # Мобильный UI - компактнее
-            # Фон для информации
-            pygame.draw.rect(self.screen, UTM_DARK_PURPLE, (0, 0, SCREEN_WIDTH, 80))
-            pygame.draw.line(self.screen, UTM_GOLD, (0, 80), (SCREEN_WIDTH, 80), 2)
-            
-            # Очки
-            score_text = f"Очки: {self.score}"
-            score_surface = self.font_medium.render(score_text, True, UTM_GOLD)
-            self.screen.blit(score_surface, (10, 10))
-            
-            # Время
-            time_sec = self.time_remaining // FPS
-            time_text = f"Время: {time_sec}s"
-            time_color = RED if time_sec < 10 else YELLOW
-            time_surface = self.font_medium.render(time_text, True, time_color)
-            time_rect = time_surface.get_rect(topright=(SCREEN_WIDTH - 10, 10))
-            self.screen.blit(time_surface, time_rect)
-            
-            # Статус учителя (меньше)
-            teacher_status = "УЧИТЕЛЬ СМОТРИТ!" if self.teacher.looking_at_student else "БЕЗОПАСНО"
-            teacher_color = RED if self.teacher.looking_at_student else GREEN
-            teacher_text = self.font_small.render(teacher_status, True, teacher_color)
-            teacher_rect = teacher_text.get_rect(center=(SCREEN_WIDTH // 2, 45))
-            
-            # Фон статуса
-            status_bg = teacher_rect.inflate(20, 10)
-            pygame.draw.rect(self.screen, (0, 0, 0, 50), status_bg, border_radius=5)
-            pygame.draw.rect(self.screen, teacher_color, status_bg, 2, border_radius=5)
-            self.screen.blit(teacher_text, teacher_rect)
-        else:
-            # Десктопный UI
-            # Очки
-            score_text = f"Очки: {self.score}"
-            score_surface = self.font_medium.render(score_text, True, UTM_PURPLE)
-            self.screen.blit(score_surface, (20, 20))
-            
-            # Время
-            time_sec = self.time_remaining // FPS
-            time_text = f"Время: {time_sec}s"
-            time_color = RED if time_sec < 10 else GREEN
-            time_surface = self.font_medium.render(time_text, True, time_color)
-            self.screen.blit(time_surface, (SCREEN_WIDTH - 200, 20))
-            
-            # Статус учителя
-            teacher_status = "⚠️ УЧИТЕЛЬ СМОТРИТ НА ТЕБЯ!" if self.teacher.looking_at_student else "✅ Учитель отвлёкся"
-            teacher_color = RED if self.teacher.looking_at_student else GREEN
-            teacher_text = self.font_medium.render(teacher_status, True, teacher_color)
-            teacher_rect = teacher_text.get_rect(center=(SCREEN_WIDTH // 2, 580))
-            self.screen.blit(teacher_text, teacher_rect)
+        # Мобильный UI - компактнее
+        # Фон для информации
+        pygame.draw.rect(self.screen, UTM_DARK_PURPLE, (0, 0, SCREEN_WIDTH, 100))
+        pygame.draw.line(self.screen, UTM_GOLD, (0, 100), (SCREEN_WIDTH, 100), 2)
+        
+        # Очки (слева)
+        score_text = f"Очки: {self.score}"
+        score_surface = self.font_medium.render(score_text, True, UTM_GOLD)
+        self.screen.blit(score_surface, (15, 15))
+        
+        # Время (справа)
+        time_sec = self.time_remaining // FPS
+        time_text = f"Время: {time_sec}s"
+        time_color = RED if time_sec < 10 else YELLOW
+        time_surface = self.font_medium.render(time_text, True, time_color)
+        time_rect = time_surface.get_rect(topright=(SCREEN_WIDTH - 15, 15))
+        self.screen.blit(time_surface, time_rect)
+        
+        # Статус учителя (по центру)
+        teacher_status = "⚠️ УЧИТЕЛЬ СМОТРИТ!" if self.teacher.looking_at_student else "✅ БЕЗОПАСНО"
+        teacher_color = RED if self.teacher.looking_at_student else GREEN
+        teacher_text = self.font_small.render(teacher_status, True, teacher_color)
+        teacher_rect = teacher_text.get_rect(center=(SCREEN_WIDTH // 2, 60))
+        
+        # Фон статуса
+        status_bg = teacher_rect.inflate(20, 10)
+        pygame.draw.rect(self.screen, (0, 0, 0, 50), status_bg, border_radius=5)
+        pygame.draw.rect(self.screen, teacher_color, status_bg, 2, border_radius=5)
+        self.screen.blit(teacher_text, teacher_rect)
     
     def draw_messages(self):
         """Отрисовать сообщения"""
-        if IS_MOBILE:
-            message_y = SCREEN_HEIGHT // 2 - 50
-            max_messages = 2
-        else:
-            message_y = 350
-            max_messages = 3
+        message_y = 200
+        max_messages = 2
         
         for i, (msg_text, _) in enumerate(self.messages[:max_messages]):
             msg_surface = self.font_small.render(msg_text, True, BLACK)
@@ -514,38 +486,21 @@ class Game:
         overlay.fill(RED)
         self.screen.blit(overlay, (0, 0))
         
-        if IS_MOBILE:
-            title = self.font_large.render("ПОЙМАЛИ!", True, YELLOW)
-            title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 100))
-            self.screen.blit(title, title_rect)
-            
-            message = self.font_small.render("Учитель увидел что ты делаешь!", True, WHITE)
-            message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 180))
-            self.screen.blit(message, message_rect)
-            
-            score_text = self.font_medium.render(f"Очки: {self.score}", True, YELLOW)
-            score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 280))
-            self.screen.blit(score_text, score_rect)
-            
-            hint = self.font_small.render("Нажми ENTER для меню", True, WHITE)
-            hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 380))
-            self.screen.blit(hint, hint_rect)
-        else:
-            title = self.font_large.render("💀 ПОЙМАЛИ! 💀", True, YELLOW)
-            title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 150))
-            self.screen.blit(title, title_rect)
-            
-            message = self.font_medium.render("Учитель увидел что ты делаешь!", True, WHITE)
-            message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 280))
-            self.screen.blit(message, message_rect)
-            
-            score_text = self.font_medium.render(f"Твои очки: {self.score}", True, WHITE)
-            score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 380))
-            self.screen.blit(score_text, score_rect)
-            
-            hint = self.font_small.render("Нажми ENTER чтобы вернуться в меню", True, WHITE)
-            hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 500))
-            self.screen.blit(hint, hint_rect)
+        title = self.font_large.render("ПОЙМАЛИ!", True, YELLOW)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 150))
+        self.screen.blit(title, title_rect)
+        
+        message = self.font_small.render("Учитель увидел твою активность!", True, WHITE)
+        message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 250))
+        self.screen.blit(message, message_rect)
+        
+        score_text = self.font_medium.render(f"Очки: {self.score}", True, YELLOW)
+        score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 350))
+        self.screen.blit(score_text, score_rect)
+        
+        hint = self.font_small.render("Нажми ENTER для меню", True, WHITE)
+        hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 500))
+        self.screen.blit(hint, hint_rect)
     
     def draw_win(self):
         """Отрисовать экран победы"""
@@ -557,38 +512,21 @@ class Game:
                             int(GREEN[2] + (DARK_GREEN[2] - GREEN[2]) * y / SCREEN_HEIGHT)),
                            (0, y), (SCREEN_WIDTH, y))
         
-        if IS_MOBILE:
-            title = self.font_large.render("УСПЕХ!", True, YELLOW)
-            title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 100))
-            self.screen.blit(title, title_rect)
-            
-            message = self.font_small.render("Ты пережил экзамен!", True, WHITE)
-            message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 180))
-            self.screen.blit(message, message_rect)
-            
-            score_text = self.font_large.render(f"Счёт: {self.score}", True, YELLOW)
-            score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 280))
-            self.screen.blit(score_text, score_rect)
-            
-            hint = self.font_small.render("Нажми ENTER для меню", True, WHITE)
-            hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 380))
-            self.screen.blit(hint, hint_rect)
-        else:
-            title = self.font_large.render("🎓 УСПЕШНО СПУСТИЛСЯ! 🎓", True, YELLOW)
-            title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 150))
-            self.screen.blit(title, title_rect)
-            
-            message = self.font_medium.render("Ты пережил экзамен безнаказанно!", True, BLACK)
-            message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 280))
-            self.screen.blit(message, message_rect)
-            
-            score_text = self.font_large.render(f"Финальный счёт: {self.score}", True, BLACK)
-            score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 380))
-            self.screen.blit(score_text, score_rect)
-            
-            hint = self.font_small.render("Нажми ENTER чтобы вернуться в меню", True, BLACK)
-            hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 500))
-            self.screen.blit(hint, hint_rect)
+        title = self.font_large.render("УСПЕХ!", True, YELLOW)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 150))
+        self.screen.blit(title, title_rect)
+        
+        message = self.font_small.render("Ты пережил экзамен безнаказанно!", True, WHITE)
+        message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 250))
+        self.screen.blit(message, message_rect)
+        
+        score_text = self.font_large.render(f"Счёт: {self.score}", True, YELLOW)
+        score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 350))
+        self.screen.blit(score_text, score_rect)
+        
+        hint = self.font_small.render("Нажми ENTER для меню", True, WHITE)
+        hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 500))
+        self.screen.blit(hint, hint_rect)
     
     def handle_menu_click(self, pos: Tuple[int, int]):
         """Обработить клик в меню"""
