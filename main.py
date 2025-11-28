@@ -636,12 +636,15 @@ class Game:
             # Обновить метки кнопок
             self.update_button_labels()
             
+            # Сохранить активность ДО обновления
+            was_activity = self.student.current_activity
+            
             # Обновить активность студента
             activity_completed = self.student.update_activity()
             
             # Если активность завершена - дать очки
-            if activity_completed and self.student.activity_duration > 0:
-                activity = self.student.current_activity
+            if activity_completed and was_activity != StudentActivity.NORMAL:
+                activity = was_activity
                 points = {
                     StudentActivity.CHEAT: 20,
                     StudentActivity.GAMES: 10,
