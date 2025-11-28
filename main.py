@@ -1,6 +1,8 @@
 import pygame
 import random
 import sys
+import json
+import os
 from enum import Enum
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
@@ -274,15 +276,50 @@ class Game:
             Difficulty.IMPOSSIBLE: {"time": 50, "chance": 50, "name": "НЕВОЗМОЖНЫЙ", "description": "50 сек, 50% риск"},
         }
         
-        self.create_menu_buttons()
+        # Лучший счет игрока
+        self.best_score = 0
+        self.scores_file = "scores.json"
+        self.load_best_score()
         
+        self.create_menu_buttons()
+    
+    def load_best_score(self):
+        """Загрузить лучший счет из файла"""
+        try:
+            if os.path.exists(self.scores_file):
+                with open(self.scores_file, 'r') as f:
+                    data = json.load(f)
+                    self.best_score = data.get('best_score', 0)
+            else:
+                self.best_score = 0
+        except:
+            self.best_score = 0
+    
+    def save_best_score(self):
+        """Сохранить лучший счет в файл"""
+        try:
+            data = {'best_score': self.best_score}
+            with open(self.scores_file, 'w') as f:
+                json.dump(data, f)
+        except:
+            pass
+    
+    def update_best_score(self, score: int):
+        """Обновить лучший счет если текущий выше"""
+        if score > self.best_score:
+            self.best_score = score
+            self.save_best_score()
+    
     def create_menu_buttons(self):
         """Создать кнопки главного меню"""
         button_width = 280
         button_height = 70
-        start_y = 200
         spacing = 110
         x = SCREEN_WIDTH // 2 - button_width // 2
+        
+        # Расчет Y позиции для центрирования кнопок вертикально
+        total_height = button_height * 3 + spacing * 2
+        start_y = (SCREEN_HEIGHT - total_height) // 2
         
         self.buttons = [
             Button(x, start_y, button_width, button_height, "НАЧАТЬ ИГРУ", action="start"),
@@ -294,9 +331,12 @@ class Game:
         """Создать кнопки выбора сложности"""
         button_width = 280
         button_height = 70
-        start_y = 150
         spacing = 110
         x = SCREEN_WIDTH // 2 - button_width // 2
+        
+        # Расчет Y позиции для центрирования кнопок вертикально
+        total_height = button_height * 5 + spacing * 4
+        start_y = (SCREEN_HEIGHT - total_height) // 2
         
         self.buttons = [
             Button(x, start_y, button_width, button_height, "ЛЕГКИЙ\n30 сек, 15% риск", action="easy"),
@@ -429,6 +469,17 @@ class Game:
         # Кнопки
         for button in self.buttons:
             button.draw(self.screen, self.font_small)
+        
+        # Лучший счет внизу экрана
+        best_score_text = self.font_small.render(f"Лучший счет: {self.best_score}", True, UTM_GOLD)
+        best_score_rect = best_score_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 730))
+        
+        # Фон для счета
+        bg_rect = best_score_rect.inflate(30, 20)
+        pygame.draw.rect(self.screen, (0, 0, 0, 50), bg_rect, border_radius=10)
+        pygame.draw.rect(self.screen, UTM_GOLD, bg_rect, 2, border_radius=10)
+        
+        self.screen.blit(best_score_text, best_score_rect)
     
     def draw_difficulty_menu(self):
         """Отрисовать меню выбора сложности"""
@@ -631,6 +682,7 @@ class Game:
         if self.teacher.looking_at_student:
             # Если студент в процессе выполнения активности и учитель смотрит - поймали
             if self.student.activity_duration > 0:
+                self.update_best_score(self.score)
                 self.add_message("😱 ПОЙМАНА! Учитель заметил!", 180)
                 self.state = GameState.GAME_OVER
             return
@@ -750,6 +802,7 @@ class Game:
             
             # Проверить конец времени
             if self.time_remaining <= 0:
+                self.update_best_score(self.score)
                 self.state = GameState.WIN
                 self.add_message("✅ Время вышло! Ты выжил!", 240)
                 return
@@ -765,6 +818,7 @@ class Game:
                     
                     # Проверить - поймана ли студентка?
                     if self.student.activity_duration > 0:
+                        self.update_best_score(self.score)
                         self.add_message("😱 ПОЙМАНА! Учитель заметил активность!", 180)
                         self.state = GameState.GAME_OVER
                         return
