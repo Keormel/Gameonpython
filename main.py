@@ -380,7 +380,7 @@ class Game:
             Button(start_x + spacing_x, start_y, button_width, button_height, "🎮\nИГРАТЬ\n2 сек", action="games"),
             Button(start_x + spacing_x * 2, start_y, button_width, button_height, "💤\nСПАТЬ\n4 сек", action="sleep"),
             Button(start_x + spacing_x * 3, start_y, button_width, button_height, "🍎\nЕСТЬ\n2.5 сек", action="eat"),
-            Button(start_x + spacing_x * 4, start_y, button_width, button_height, "📖\nУЧИТЬ\nБЕЗ РИСКА", action="normal"),
+            Button(start_x + spacing_x * 4, start_y, button_width, button_height, "📖\nОтменить\nДействие", action="normal"),
         ]
         self.update_button_labels()
     
