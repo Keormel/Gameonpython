@@ -134,11 +134,11 @@ class Student:
         
         # Иконка текущей активности над головой
         icons = {
-            StudentActivity.NORMAL: "📖",
-            StudentActivity.CHEAT: "📝",
-            StudentActivity.GAMES: "🎮",
-            StudentActivity.SLEEP: "💤",
-            StudentActivity.EAT: "🍎",
+            StudentActivity.NORMAL: "[STUDY]",
+            StudentActivity.CHEAT: "[CHEAT]",
+            StudentActivity.GAMES: "[GAMES]",
+            StudentActivity.SLEEP: "[SLEEP]",
+            StudentActivity.EAT: "[EAT]",
         }
         
         icon = icons.get(self.current_activity, "")
@@ -376,35 +376,35 @@ class Game:
             start_y = SAFE_TOP
         
         self.buttons = [
-            Button(start_x, start_y, button_width, button_height, "📝\nСПИСАТЬ\n3 сек", action="cheat"),
-            Button(start_x + spacing_x, start_y, button_width, button_height, "🎮\nИГРАТЬ\n2 сек", action="games"),
-            Button(start_x + spacing_x * 2, start_y, button_width, button_height, "💤\nСПАТЬ\n4 сек", action="sleep"),
-            Button(start_x + spacing_x * 3, start_y, button_width, button_height, "🍎\nЕСТЬ\n2.5 сек", action="eat"),
-            Button(start_x + spacing_x * 4, start_y, button_width, button_height, "📖\nОтменить\nДействие", action="normal"),
+            Button(start_x, start_y, button_width, button_height, "\nСПИСАТЬ\n3 сек", action="cheat"),
+            Button(start_x + spacing_x, start_y, button_width, button_height, "\nИГРАТЬ\n2 сек", action="games"),
+            Button(start_x + spacing_x * 2, start_y, button_width, button_height, "\nСПАТЬ\n4 сек", action="sleep"),
+            Button(start_x + spacing_x * 3, start_y, button_width, button_height, "\nЕСТЬ\n2.5 сек", action="eat"),
+            Button(start_x + spacing_x * 4, start_y, button_width, button_height, "\nОтменить\nДействие", action="normal"),
         ]
         self.update_button_labels()
     
     def update_button_labels(self):
         """Обновить текст кнопок в зависимости от использованности"""
         if self.student.cheat_used:
-            self.buttons[0].text = "✅\nСПИСАТЬ\nиспользовано"
+            self.buttons[0].text = "\nСПИСАТЬ\nиспользовано"
         else:
-            self.buttons[0].text = "📝\nСПИСАТЬ\n3 сек"
+            self.buttons[0].text = "\nСПИСАТЬ\n3 сек"
         
         if self.student.games_used:
-            self.buttons[1].text = "✅\nИГРАТЬ\nиспользовано"
+            self.buttons[1].text = "\nИГРАТЬ\nиспользовано"
         else:
-            self.buttons[1].text = "🎮\nИГРАТЬ\n2 сек"
+            self.buttons[1].text = "\nИГРАТЬ\n2 сек"
         
         if self.student.sleep_used:
-            self.buttons[2].text = "✅\nСПАТЬ\nиспользовано"
+            self.buttons[2].text = "\nСПАТЬ\nиспользовано"
         else:
-            self.buttons[2].text = "💤\nСПАТЬ\n4 сек"
+            self.buttons[2].text = "nСПАТЬ\n4 сек"
         
         if self.student.eat_used:
-            self.buttons[3].text = "✅\nЕСТЬ\nиспользовано"
+            self.buttons[3].text = "\nЕСТЬ\nиспользовано"
         else:
-            self.buttons[3].text = "🍎\nЕСТЬ\n2.5 сек"
+            self.buttons[3].text = "\nЕСТЬ\n2.5 сек"
     
     def start_game(self):
         """Начать новую игру"""
@@ -423,7 +423,7 @@ class Game:
         self.create_game_buttons()
         
         difficulty_name = settings["name"]
-        self.add_message(f"🎓 {difficulty_name} уровень! Списывай и не попадайся! 🎓", 120)
+        self.add_message(f"{difficulty_name} уровень! Списывай и не попадайся!", 120)
         self.schedule_teacher_actions()
     
     def schedule_teacher_actions(self):
@@ -567,7 +567,7 @@ class Game:
         self.screen.blit(time_surface, time_rect)
         
         # Статус учителя (по центру)
-        teacher_status = "⚠️ УЧИТЕЛЬ СМОТРИТ!" if self.teacher.looking_at_student else "✅ БЕЗОПАСНО"
+        teacher_status = "[WARNING] УЧИТЕЛЬ СМОТРИТ!" if self.teacher.looking_at_student else "[OK] БЕЗОПАСНО"
         teacher_color = RED if self.teacher.looking_at_student else GREEN
         teacher_text = self.font_small.render(teacher_status, True, teacher_color)
         teacher_rect = teacher_text.get_rect(center=(SCREEN_WIDTH // 2, 60))
@@ -653,7 +653,7 @@ class Game:
                     self.state = GameState.DIFFICULTY_MENU
                     self.create_difficulty_buttons()
                 elif button.action == "rules":
-                    self.add_message("📖 Правила: Скрывай активности! Если учитель увидит - ты поймана! 📖", 240)
+                    self.add_message("[RULES] Правила: Скрывай активности! Если учитель увидит - ты поймана! [RULES]", 240)
                 elif button.action == "exit":
                     return False
         return True
@@ -683,7 +683,7 @@ class Game:
             # Если студент в процессе выполнения активности и учитель смотрит - поймали
             if self.student.activity_duration > 0:
                 self.update_best_score(self.score)
-                self.add_message("😱 ПОЙМАНА! Учитель заметил!", 180)
+                self.add_message("[CAUGHT] ПОЙМАНА! Учитель заметил!", 180)
                 self.state = GameState.GAME_OVER
             return
         
@@ -708,12 +708,12 @@ class Game:
                     
                     # Проверяем, использовалось ли это действие уже
                     if used_flags.get(button.action, False):
-                        self.add_message("❌ Это действие уже использовано!", 100)
+                        self.add_message("[ERROR] Это действие уже использовано!", 100)
                         break
                     
                     # Если было активное действие - прерываем его
                     if self.student.activity_duration > 0:
-                        self.add_message("⚠️ Прервала предыдущее действие!", 100)
+                        self.add_message("[WARNING] Прервала предыдущее действие!", 100)
                     
                     # Помечаем действие как использованное
                     if button.action == "cheat":
@@ -730,22 +730,22 @@ class Game:
                     
                     # Сообщения
                     messages = {
-                        "cheat": "📝 Начала списывать ответ! (3 сек)",
-                        "games": "🎮 Начала играть в телефон! (2 сек)",
-                        "sleep": "💤 Начала спать! (4 сек)",
-                        "eat": "🍎 Начала есть! (2.5 сек)",
+                        "cheat": "[CHEAT] Начала списывать ответ! (3 сек)",
+                        "games": "[GAMES] Начала играть в телефон! (2 сек)",
+                        "sleep": "[SLEEP] Начала спать! (4 сек)",
+                        "eat": "[EAT] Начала есть! (2.5 сек)",
                     }
                     self.add_message(messages.get(button.action, ""), 120)
                 
                 elif button.action == "normal":
                     # "УЧИТЬ" - прерывает любое действие
                     if self.student.activity_duration > 0:
-                        self.add_message("🛑 Остановила запрещённое действие!", 100)
+                        self.add_message("[STOP] Остановила запрещённое действие!", 100)
                     
                     self.student.current_activity = StudentActivity.NORMAL
                     self.student.activity_duration = 0
                     self.student.activity_timer = 0
-                    self.add_message("📖 Решаю задачу как положено...", 120)
+                    self.add_message("[STUDY] Решаю задачу как положено...", 120)
                 break
     
     def handle_click(self, pos: Tuple[int, int]):
@@ -794,7 +794,7 @@ class Game:
                 }
                 self.score += points.get(activity, 0)
                 if points.get(activity, 0) > 0:
-                    self.add_message(f"Успешно! +{points[activity]} очков", 120)
+                    self.add_message(f"[SUCCESS] Успешно! +{points[activity]} очков", 120)
             
             # Обновить время
             self.time_remaining -= 1
@@ -804,7 +804,7 @@ class Game:
             if self.time_remaining <= 0:
                 self.update_best_score(self.score)
                 self.state = GameState.WIN
-                self.add_message("✅ Время вышло! Ты выжил!", 240)
+                self.add_message("[WIN] Время вышло! Ты выжил!", 240)
                 return
             
             # Обновить состояние учителя
@@ -819,7 +819,7 @@ class Game:
                     # Проверить - поймана ли студентка?
                     if self.student.activity_duration > 0:
                         self.update_best_score(self.score)
-                        self.add_message("😱 ПОЙМАНА! Учитель заметил активность!", 180)
+                        self.add_message("[CAUGHT] ПОЙМАНА! Учитель заметил активность!", 180)
                         self.state = GameState.GAME_OVER
                         return
                 
