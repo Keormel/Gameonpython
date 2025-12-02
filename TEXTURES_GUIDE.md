@@ -8,11 +8,11 @@
 
 ```
 assets/
-├── student_normal.png       # Студент (обычное состояние)
-├── student_cheat.png        # Студент (списывает)
-├── student_games.png        # Студент (играет)
-├── student_sleep.png        # Студент (спит)
-├── student_eat.png          # Студент (ест)
+├── student_normal.png       # Студент (обычное состояние) +
+├── student_cheat.png        # Студент (списывает)  
+├── student_games.png        # Студент (играет) +
+├── student_sleep.png        # Студент (спит) +
+├── student_eat.png          # Студент (ест) +
 ├── teacher_normal.png       # Преподаватель (не смотрит)
 ├── teacher_looking.png      # Преподаватель (смотрит)
 └── backgrounds/
