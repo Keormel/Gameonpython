@@ -1,6 +1,8 @@
 import pygame
 import random
 import sys
+import json
+import os
 from enum import Enum
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
@@ -8,12 +10,20 @@ from typing import List, Tuple, Optional
 # Инициализация Pygame
 pygame.init()
 
-# Константы - адаптация под разные размеры экрана
-import os
+# Константы - мобильный формат 9:16 (540x960)
 SCREEN_WIDTH = 540
 SCREEN_HEIGHT = 960
 FPS = 60
 IS_MOBILE = True
+
+# Границы безопасной области для элементов (отступ от краев)
+SAFE_MARGIN = 5
+SAFE_LEFT = SAFE_MARGIN
+SAFE_RIGHT = SCREEN_WIDTH - SAFE_MARGIN
+SAFE_TOP = SAFE_MARGIN
+SAFE_BOTTOM = SCREEN_HEIGHT - SAFE_MARGIN
+SAFE_WIDTH = SAFE_RIGHT - SAFE_LEFT
+SAFE_HEIGHT = SAFE_BOTTOM - SAFE_TOP
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -39,9 +49,10 @@ DARK_CREAM = (240, 235, 225)
 
 class GameState(Enum):
     MAIN_MENU = 1
-    GAME = 2
-    GAME_OVER = 3
-    WIN = 4
+    DIFFICULTY_MENU = 2
+    GAME = 3
+    GAME_OVER = 4
+    WIN = 5
 
 class StudentActivity(Enum):
     NORMAL = 1
@@ -49,6 +60,12 @@ class StudentActivity(Enum):
     GAMES = 3
     SLEEP = 4
     EAT = 5
+
+class Difficulty(Enum):
+    EASY = 1
+    MEDIUM = 2
+    HARD = 3
+    IMPOSSIBLE = 4
 
 @dataclass
 class Student:
@@ -211,8 +228,8 @@ class Button:
         # Многострочный текст
         lines = self.text.split('\n')
         
-        # Для мобильных - мельче, для десктопа - крупнее
-        line_spacing = 18 if IS_MOBILE else 22
+        # Мобильные размеры - мельче шрифт для узких кнопок
+        line_spacing = 16
         total_height = len(lines) * line_spacing
         y_start = self.rect.centery - total_height // 2
         
@@ -233,10 +250,10 @@ class Game:
         pygame.display.set_caption("UTM Cheating Simulator - Списывай, пока не видит!")
         self.clock = pygame.time.Clock()
         
-        # Размеры шрифтов для формата 9:19
-        self.font_large = pygame.font.Font(None, 40)
-        self.font_medium = pygame.font.Font(None, 28)
-        self.font_small = pygame.font.Font(None, 20)
+        # Адаптивные размеры шрифтов для мобильного
+        self.font_large = pygame.font.Font(None, 48)
+        self.font_medium = pygame.font.Font(None, 32)
+        self.font_small = pygame.font.Font(None, 24)
         
         self.state = GameState.MAIN_MENU
         self.student = Student()
@@ -247,16 +264,62 @@ class Game:
         self.buttons: List[Button] = []
         self.messages: List[Tuple[str, int]] = []
         
-        self.create_menu_buttons()
+        # Параметры сложности
+        self.difficulty = Difficulty.EASY
+        self.teacher_look_chance = 15  # Вероятность в процентах
         
+        # Словарь параметров сложности
+        self.difficulty_settings = {
+            Difficulty.EASY: {"time": 30, "chance": 15, "name": "ЛЕГКИЙ", "description": "30 сек, 15% риск"},
+            Difficulty.MEDIUM: {"time": 45, "chance": 30, "name": "СРЕДНИЙ", "description": "45 сек, 30% риск"},
+            Difficulty.HARD: {"time": 45, "chance": 40, "name": "СЛОЖНЫЙ", "description": "45 сек, 40% риск"},
+            Difficulty.IMPOSSIBLE: {"time": 50, "chance": 50, "name": "НЕВОЗМОЖНЫЙ", "description": "50 сек, 50% риск"},
+        }
+        
+        # Лучший счет игрока
+        self.best_score = 0
+        self.scores_file = "scores.json"
+        self.load_best_score()
+        
+        self.create_menu_buttons()
+    
+    def load_best_score(self):
+        """Загрузить лучший счет из файла"""
+        try:
+            if os.path.exists(self.scores_file):
+                with open(self.scores_file, 'r') as f:
+                    data = json.load(f)
+                    self.best_score = data.get('best_score', 0)
+            else:
+                self.best_score = 0
+        except:
+            self.best_score = 0
+    
+    def save_best_score(self):
+        """Сохранить лучший счет в файл"""
+        try:
+            data = {'best_score': self.best_score}
+            with open(self.scores_file, 'w') as f:
+                json.dump(data, f)
+        except:
+            pass
+    
+    def update_best_score(self, score: int):
+        """Обновить лучший счет если текущий выше"""
+        if score > self.best_score:
+            self.best_score = score
+            self.save_best_score()
+    
     def create_menu_buttons(self):
-        """Создать кнопки меню"""
-        # Для формата 9:19 (540x1140)
-        button_width = 220
-        button_height = 60
-        start_y = 150
-        spacing = 90
+        """Создать кнопки главного меню"""
+        button_width = 280
+        button_height = 70
+        spacing = 110
         x = SCREEN_WIDTH // 2 - button_width // 2
+        
+        # Расчет Y позиции для центрирования кнопок вертикально
+        total_height = button_height * 3 + spacing * 2
+        start_y = (SCREEN_HEIGHT - total_height) // 2
         
         self.buttons = [
             Button(x, start_y, button_width, button_height, "НАЧАТЬ ИГРУ", action="start"),
@@ -264,14 +327,53 @@ class Game:
             Button(x, start_y + spacing * 2, button_width, button_height, "ВЫХОД", action="exit"),
         ]
     
+    def create_difficulty_buttons(self):
+        """Создать кнопки выбора сложности"""
+        button_width = 280
+        button_height = 70
+        spacing = 110
+        x = SCREEN_WIDTH // 2 - button_width // 2
+        
+        # Расчет Y позиции для центрирования кнопок вертикально
+        total_height = button_height * 5 + spacing * 4
+        start_y = (SCREEN_HEIGHT - total_height) // 2
+        
+        self.buttons = [
+            Button(x, start_y, button_width, button_height, "ЛЕГКИЙ\n30 сек, 15% риск", action="easy"),
+            Button(x, start_y + spacing, button_width, button_height, "СРЕДНИЙ\n45 сек, 30% риск", action="medium"),
+            Button(x, start_y + spacing * 2, button_width, button_height, "СЛОЖНЫЙ\n45 сек, 40% риск", action="hard"),
+            Button(x, start_y + spacing * 3, button_width, button_height, "НЕВОЗМОЖНЫЙ\n50 сек, 50% риск", action="impossible"),
+            Button(x, start_y + spacing * 4, button_width, button_height, "← НАЗАД", action="back"),
+        ]
+    
     def create_game_buttons(self):
         """Создать кнопки активностей в игре"""
-        # Кнопки для формата 9:19 (540x1140)
-        button_width = 100
-        button_height = 80
-        start_x = 20
-        start_y = SCREEN_HEIGHT - 100  # Ближе к низу
-        spacing_x = 108
+        button_width = 90
+        button_height = 70
+        start_y = 800
+        spacing_x = 100
+        
+        # Расчет начальной X позиции для центрирования
+        total_width = button_width * 5 + spacing_x * 4
+        start_x = (SCREEN_WIDTH - total_width) // 2
+        
+        # ЖЕСТКИЕ ОГРАНИЧЕНИЯ: кнопки не должны выходить за экран
+        # Проверяем левую границу
+        if start_x < SAFE_LEFT:
+            start_x = SAFE_LEFT
+        
+        # Проверяем правую границу (самая правая кнопка)
+        last_button_right = start_x + spacing_x * 4 + button_width
+        if last_button_right > SAFE_RIGHT:
+            start_x = SAFE_RIGHT - (spacing_x * 4 + button_width)
+        
+        # Проверяем нижнюю границу
+        if start_y + button_height > SAFE_BOTTOM:
+            start_y = SAFE_BOTTOM - button_height
+        
+        # Проверяем верхнюю границу
+        if start_y < SAFE_TOP:
+            start_y = SAFE_TOP
         
         self.buttons = [
             Button(start_x, start_y, button_width, button_height, "📝\nСПИСАТЬ\n3 сек", action="cheat"),
@@ -311,15 +413,23 @@ class Game:
         self.teacher = Teacher()
         self.score = 0
         self.game_time = 0
-        self.time_remaining = 30 * 60  # 30 секунд
+        
+        # Установить параметры в зависимости от сложности
+        settings = self.difficulty_settings[self.difficulty]
+        self.time_remaining = settings["time"] * 60  # Перевести в фреймы
+        self.teacher_look_chance = settings["chance"]
+        
         self.messages = []
         self.create_game_buttons()
-        self.add_message("🎓 Ты на экзамене в УТМ! Списывай и не попадайся! 🎓", 120)
+        
+        difficulty_name = settings["name"]
+        self.add_message(f"🎓 {difficulty_name} уровень! Списывай и не попадайся! 🎓", 120)
         self.schedule_teacher_actions()
     
     def schedule_teacher_actions(self):
         """Запланировать движения учителя"""
         delay = random.randint(2, 5)
+        # Вероятность того, что учитель посмотрит на студента
         look_duration = random.randint(60, 180)
         self.teacher.look_timer = delay * FPS
         self.teacher.look_duration = look_duration
@@ -338,23 +448,57 @@ class Game:
                             int(UTM_PURPLE[2] + (UTM_DARK_PURPLE[2] - UTM_PURPLE[2]) * y / SCREEN_HEIGHT)),
                            (0, y), (SCREEN_WIDTH, y))
         
-        # Заголовок для формата 9:19
+        # Заголовок (большой)
         title = self.font_large.render("UTM CHEATING", True, UTM_GOLD)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 50))
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 80))
         self.screen.blit(title, title_rect)
         
         title2 = self.font_medium.render("SIMULATOR", True, WHITE)
-        title2_rect = title2.get_rect(center=(SCREEN_WIDTH // 2, 100))
+        title2_rect = title2.get_rect(center=(SCREEN_WIDTH // 2, 140))
         self.screen.blit(title2, title2_rect)
         
         # Подзаголовок
-        subtitle = self.font_small.render("Списывай пока не видит преподаватель!", True, YELLOW)
-        subtitle_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, 130))
+        subtitle = self.font_small.render("Списывай пока не видит!", True, YELLOW)
+        subtitle_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, 180))
         self.screen.blit(subtitle, subtitle_rect)
         
         # Декоративная линия
-        pygame.draw.line(self.screen, UTM_GOLD, (SCREEN_WIDTH // 2 - 100, 140), 
-                        (SCREEN_WIDTH // 2 + 100, 140), 2)
+        pygame.draw.line(self.screen, UTM_GOLD, (SCREEN_WIDTH // 2 - 80, 200), 
+                        (SCREEN_WIDTH // 2 + 80, 200), 2)
+        
+        # Кнопки
+        for button in self.buttons:
+            button.draw(self.screen, self.font_small)
+        
+        # Лучший счет внизу экрана
+        best_score_text = self.font_small.render(f"Лучший счет: {self.best_score}", True, UTM_GOLD)
+        best_score_rect = best_score_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 730))
+        
+        # Фон для счета
+        bg_rect = best_score_rect.inflate(30, 20)
+        pygame.draw.rect(self.screen, (0, 0, 0, 50), bg_rect, border_radius=10)
+        pygame.draw.rect(self.screen, UTM_GOLD, bg_rect, 2, border_radius=10)
+        
+        self.screen.blit(best_score_text, best_score_rect)
+    
+    def draw_difficulty_menu(self):
+        """Отрисовать меню выбора сложности"""
+        # Градиентный фон
+        for y in range(SCREEN_HEIGHT):
+            color_val = int(UTM_DARK_PURPLE[0] + (UTM_PURPLE[0] - UTM_DARK_PURPLE[0]) * y / SCREEN_HEIGHT)
+            pygame.draw.line(self.screen, 
+                           (color_val, int(UTM_DARK_PURPLE[1] + (UTM_PURPLE[1] - UTM_DARK_PURPLE[1]) * y / SCREEN_HEIGHT), 
+                            int(UTM_DARK_PURPLE[2] + (UTM_PURPLE[2] - UTM_DARK_PURPLE[2]) * y / SCREEN_HEIGHT)),
+                           (0, y), (SCREEN_WIDTH, y))
+        
+        # Заголовок
+        title = self.font_large.render("ВЫБЕРИ СЛОЖНОСТЬ", True, UTM_GOLD)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 60))
+        self.screen.blit(title, title_rect)
+        
+        # Декоративная линия
+        pygame.draw.line(self.screen, UTM_GOLD, (SCREEN_WIDTH // 2 - 100, 100), 
+                        (SCREEN_WIDTH // 2 + 100, 100), 2)
         
         # Кнопки
         for button in self.buttons:
@@ -373,18 +517,20 @@ class Game:
                             int(LIGHT_BLUE[2] + (CREAM[2] - LIGHT_BLUE[2]) * y / (SCREEN_HEIGHT // 2))),
                            (0, y), (SCREEN_WIDTH, y))
         
-        # Макет для формата 9:19
-        # Парта учителя (компактно вверху)
-        pygame.draw.rect(self.screen, LIGHT_BROWN, (SCREEN_WIDTH - 120, 10, 110, 80))
-        pygame.draw.rect(self.screen, BLACK, (SCREEN_WIDTH - 120, 10, 110, 80), 2)
+        # Мобильный макет (вертикальный)
+        # Парта учителя (вверху, маленькая)
+        pygame.draw.rect(self.screen, LIGHT_BROWN, (SCREEN_WIDTH - 130, 200, 120, 90))
+        pygame.draw.rect(self.screen, BLACK, (SCREEN_WIDTH - 130, 200, 120, 90), 2)
         
-        # Парта студента в центре
-        pygame.draw.rect(self.screen, (200, 150, 100), (10, SCREEN_HEIGHT // 2 - 50, 150, 100))
-        pygame.draw.rect(self.screen, BLACK, (10, SCREEN_HEIGHT // 2 - 50, 150, 100), 2)
+        # Парта студента (ниже, поближе к кнопкам)
+        pygame.draw.rect(self.screen, (200, 150, 100), (15, 600, 510, 120))
+        pygame.draw.rect(self.screen, BLACK, (15, 600, 510, 120), 2)
         
-        # Преподаватель (маленький)
-        self.teacher.x = SCREEN_WIDTH - 60
-        self.teacher.y = 50
+        # Позиции персонажей с ограничениями
+        self.student.x = max(SAFE_LEFT + 30, min(SAFE_RIGHT - 30, SCREEN_WIDTH // 2))
+        self.student.y = max(SAFE_TOP + 30, min(SAFE_BOTTOM - 60, 650))
+        self.teacher.x = max(SAFE_LEFT + 30, min(SAFE_RIGHT - 30, SCREEN_WIDTH - 70))
+        self.teacher.y = max(SAFE_TOP + 30, min(SAFE_BOTTOM - 80, 250))
         
         # Рисуем персонажей
         self.student.draw(self.screen)
@@ -396,35 +542,35 @@ class Game:
         # Сообщения
         self.draw_messages()
         
-        # Кнопки активностей
+        # Кнопки активностей (внизу, в линию)
         for button in self.buttons:
             button.draw(self.screen, self.font_small)
     
     def draw_ui(self):
         """Отрисовать UI элементы"""
-        # UI для формата 9:19 - компактный
+        # Мобильный UI - компактнее
         # Фон для информации
-        pygame.draw.rect(self.screen, UTM_DARK_PURPLE, (0, 0, SCREEN_WIDTH, 80))
-        pygame.draw.line(self.screen, UTM_GOLD, (0, 80), (SCREEN_WIDTH, 80), 2)
+        pygame.draw.rect(self.screen, UTM_DARK_PURPLE, (0, 0, SCREEN_WIDTH, 100))
+        pygame.draw.line(self.screen, UTM_GOLD, (0, 100), (SCREEN_WIDTH, 100), 2)
         
-        # Очки
+        # Очки (слева)
         score_text = f"Очки: {self.score}"
         score_surface = self.font_medium.render(score_text, True, UTM_GOLD)
-        self.screen.blit(score_surface, (10, 10))
+        self.screen.blit(score_surface, (15, 15))
         
-        # Время
+        # Время (справа)
         time_sec = self.time_remaining // FPS
         time_text = f"Время: {time_sec}s"
         time_color = RED if time_sec < 10 else YELLOW
         time_surface = self.font_medium.render(time_text, True, time_color)
-        time_rect = time_surface.get_rect(topright=(SCREEN_WIDTH - 10, 10))
+        time_rect = time_surface.get_rect(topright=(SCREEN_WIDTH - 15, 15))
         self.screen.blit(time_surface, time_rect)
         
-        # Статус учителя
-        teacher_status = "УЧИТЕЛЬ СМОТРИТ!" if self.teacher.looking_at_student else "БЕЗОПАСНО"
+        # Статус учителя (по центру)
+        teacher_status = "⚠️ УЧИТЕЛЬ СМОТРИТ!" if self.teacher.looking_at_student else "✅ БЕЗОПАСНО"
         teacher_color = RED if self.teacher.looking_at_student else GREEN
         teacher_text = self.font_small.render(teacher_status, True, teacher_color)
-        teacher_rect = teacher_text.get_rect(center=(SCREEN_WIDTH // 2, 45))
+        teacher_rect = teacher_text.get_rect(center=(SCREEN_WIDTH // 2, 60))
         
         # Фон статуса
         status_bg = teacher_rect.inflate(20, 10)
@@ -434,8 +580,7 @@ class Game:
     
     def draw_messages(self):
         """Отрисовать сообщения"""
-        # Для формата 9:19
-        message_y = SCREEN_HEIGHT // 2 - 50
+        message_y = 200
         max_messages = 2
         
         for i, (msg_text, _) in enumerate(self.messages[:max_messages]):
@@ -458,21 +603,20 @@ class Game:
         overlay.fill(RED)
         self.screen.blit(overlay, (0, 0))
         
-        # Макет для формата 9:19
         title = self.font_large.render("ПОЙМАЛИ!", True, YELLOW)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 300))
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 150))
         self.screen.blit(title, title_rect)
         
-        message = self.font_small.render("Учитель увидел что ты делаешь!", True, WHITE)
-        message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 380))
+        message = self.font_small.render("Учитель увидел твою активность!", True, WHITE)
+        message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 250))
         self.screen.blit(message, message_rect)
         
         score_text = self.font_medium.render(f"Очки: {self.score}", True, YELLOW)
-        score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 480))
+        score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 350))
         self.screen.blit(score_text, score_rect)
         
         hint = self.font_small.render("Нажми ENTER для меню", True, WHITE)
-        hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 580))
+        hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 500))
         self.screen.blit(hint, hint_rect)
     
     def draw_win(self):
@@ -485,21 +629,20 @@ class Game:
                             int(GREEN[2] + (DARK_GREEN[2] - GREEN[2]) * y / SCREEN_HEIGHT)),
                            (0, y), (SCREEN_WIDTH, y))
         
-        # Макет для формата 9:19
         title = self.font_large.render("УСПЕХ!", True, YELLOW)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 300))
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 150))
         self.screen.blit(title, title_rect)
         
-        message = self.font_small.render("Ты пережил экзамен!", True, WHITE)
-        message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 380))
+        message = self.font_small.render("Ты пережил экзамен безнаказанно!", True, WHITE)
+        message_rect = message.get_rect(center=(SCREEN_WIDTH // 2, 250))
         self.screen.blit(message, message_rect)
         
         score_text = self.font_large.render(f"Счёт: {self.score}", True, YELLOW)
-        score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 480))
+        score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 350))
         self.screen.blit(score_text, score_rect)
         
         hint = self.font_small.render("Нажми ENTER для меню", True, WHITE)
-        hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 580))
+        hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, 500))
         self.screen.blit(hint, hint_rect)
     
     def handle_menu_click(self, pos: Tuple[int, int]):
@@ -507,11 +650,31 @@ class Game:
         for button in self.buttons:
             if button.is_clicked(pos):
                 if button.action == "start":
-                    self.start_game()
+                    self.state = GameState.DIFFICULTY_MENU
+                    self.create_difficulty_buttons()
                 elif button.action == "rules":
                     self.add_message("📖 Правила: Скрывай активности! Если учитель увидит - ты поймана! 📖", 240)
                 elif button.action == "exit":
                     return False
+        return True
+    
+    def handle_difficulty_click(self, pos: Tuple[int, int]):
+        """Обработить клик в меню выбора сложности"""
+        difficulty_map = {
+            "easy": Difficulty.EASY,
+            "medium": Difficulty.MEDIUM,
+            "hard": Difficulty.HARD,
+            "impossible": Difficulty.IMPOSSIBLE,
+        }
+        
+        for button in self.buttons:
+            if button.is_clicked(pos):
+                if button.action in difficulty_map:
+                    self.difficulty = difficulty_map[button.action]
+                    self.start_game()
+                elif button.action == "back":
+                    self.state = GameState.MAIN_MENU
+                    self.create_menu_buttons()
         return True
     
     def handle_game_click(self, pos: Tuple[int, int]):
@@ -519,6 +682,7 @@ class Game:
         if self.teacher.looking_at_student:
             # Если студент в процессе выполнения активности и учитель смотрит - поймали
             if self.student.activity_duration > 0:
+                self.update_best_score(self.score)
                 self.add_message("😱 ПОЙМАНА! Учитель заметил!", 180)
                 self.state = GameState.GAME_OVER
             return
@@ -588,6 +752,8 @@ class Game:
         """Обработить клик мыши"""
         if self.state == GameState.MAIN_MENU:
             return self.handle_menu_click(pos)
+        elif self.state == GameState.DIFFICULTY_MENU:
+            return self.handle_difficulty_click(pos)
         elif self.state == GameState.GAME:
             self.handle_game_click(pos)
         elif self.state in [GameState.GAME_OVER, GameState.WIN]:
@@ -610,12 +776,15 @@ class Game:
             # Обновить метки кнопок
             self.update_button_labels()
             
+            # Сохранить активность ДО обновления
+            was_activity = self.student.current_activity
+            
             # Обновить активность студента
             activity_completed = self.student.update_activity()
             
             # Если активность завершена - дать очки
-            if activity_completed and self.student.activity_duration > 0:
-                activity = self.student.current_activity
+            if activity_completed and was_activity != StudentActivity.NORMAL:
+                activity = was_activity
                 points = {
                     StudentActivity.CHEAT: 20,
                     StudentActivity.GAMES: 10,
@@ -633,6 +802,7 @@ class Game:
             
             # Проверить конец времени
             if self.time_remaining <= 0:
+                self.update_best_score(self.score)
                 self.state = GameState.WIN
                 self.add_message("✅ Время вышло! Ты выжил!", 240)
                 return
@@ -641,14 +811,17 @@ class Game:
             if self.teacher.look_timer > 0:
                 self.teacher.look_timer -= 1
             else:
-                # Учитель начинает смотреть
-                self.teacher.looking_at_student = True
-                
-                # Проверить - поймана ли студентка?
-                if self.student.activity_duration > 0:
-                    self.add_message("😱 ПОЙМАНА! Учитель заметил активность!", 180)
-                    self.state = GameState.GAME_OVER
-                    return
+                # Проверить вероятность того, что учитель посмотрит
+                if random.randint(1, 100) <= self.teacher_look_chance:
+                    # Учитель начинает смотреть
+                    self.teacher.looking_at_student = True
+                    
+                    # Проверить - поймана ли студентка?
+                    if self.student.activity_duration > 0:
+                        self.update_best_score(self.score)
+                        self.add_message("😱 ПОЙМАНА! Учитель заметил активность!", 180)
+                        self.state = GameState.GAME_OVER
+                        return
                 
                 if self.teacher.look_duration > 0:
                     self.teacher.look_duration -= 1
@@ -666,6 +839,8 @@ class Game:
         """Отрисовать кадр"""
         if self.state == GameState.MAIN_MENU:
             self.draw_main_menu()
+        elif self.state == GameState.DIFFICULTY_MENU:
+            self.draw_difficulty_menu()
         elif self.state == GameState.GAME:
             self.draw_game()
         elif self.state == GameState.GAME_OVER:
