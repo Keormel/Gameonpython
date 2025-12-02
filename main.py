@@ -112,25 +112,33 @@ class Student:
             self.activity_timer = 0
             return True  # Активность завершена
     
-    def draw(self, screen: pygame.Surface):
+    def draw(self, screen: pygame.Surface, player_sprites: dict = None):
         """Нарисовать студента"""
-        # Голова
-        pygame.draw.circle(screen, SKIN, (int(self.x), int(self.y - 20)), 12)
-        
-        # Туловище
-        pygame.draw.rect(screen, BLUE, (int(self.x - 15), int(self.y), 30, 40))
-        
-        # Руки
-        pygame.draw.line(screen, SKIN, (int(self.x - 15), int(self.y + 5)), 
-                        (int(self.x - 30), int(self.y + 10)), 4)
-        pygame.draw.line(screen, SKIN, (int(self.x + 15), int(self.y + 5)), 
-                        (int(self.x + 30), int(self.y + 10)), 4)
-        
-        # Ноги
-        pygame.draw.line(screen, DARK_GRAY, (int(self.x - 10), int(self.y + 40)), 
-                        (int(self.x - 10), int(self.y + 60)), 3)
-        pygame.draw.line(screen, DARK_GRAY, (int(self.x + 10), int(self.y + 40)), 
-                        (int(self.x + 10), int(self.y + 60)), 3)
+        # Если есть спрайты, используем их
+        if player_sprites and self.current_activity in player_sprites:
+            sprite = player_sprites[self.current_activity]
+            # Центруем спрайт по позиции студента
+            sprite_rect = sprite.get_rect(center=(int(self.x), int(self.y + 10)))
+            screen.blit(sprite, sprite_rect)
+        else:
+            # Резервное рисование фигурой
+            # Голова
+            pygame.draw.circle(screen, SKIN, (int(self.x), int(self.y - 20)), 12)
+            
+            # Туловище
+            pygame.draw.rect(screen, BLUE, (int(self.x - 15), int(self.y), 30, 40))
+            
+            # Руки
+            pygame.draw.line(screen, SKIN, (int(self.x - 15), int(self.y + 5)), 
+                            (int(self.x - 30), int(self.y + 10)), 4)
+            pygame.draw.line(screen, SKIN, (int(self.x + 15), int(self.y + 5)), 
+                            (int(self.x + 30), int(self.y + 10)), 4)
+            
+            # Ноги
+            pygame.draw.line(screen, DARK_GRAY, (int(self.x - 10), int(self.y + 40)), 
+                            (int(self.x - 10), int(self.y + 60)), 3)
+            pygame.draw.line(screen, DARK_GRAY, (int(self.x + 10), int(self.y + 40)), 
+                            (int(self.x + 10), int(self.y + 60)), 3)
         
         # Иконка текущей активности над головой
         icons = {
@@ -255,6 +263,11 @@ class Game:
         self.font_medium = pygame.font.Font(None, 32)
         self.font_small = pygame.font.Font(None, 24)
         
+        # Загрузка изображений
+        self.bg_start_menu = None
+        self.bg_game = None
+        self.load_images()
+        
         self.state = GameState.MAIN_MENU
         self.student = Student()
         self.teacher = Teacher()
@@ -282,6 +295,37 @@ class Game:
         self.load_best_score()
         
         self.create_menu_buttons()
+    
+    def load_images(self):
+        """Загрузить изображения из assets папки"""
+        try:
+            # Загружаем фоны
+            self.bg_start_menu = pygame.image.load("assets/back-start-menu.png")
+            self.bg_start_menu = pygame.transform.scale(self.bg_start_menu, (SCREEN_WIDTH, SCREEN_HEIGHT))
+            
+            self.bg_game = pygame.image.load("assets/background.png")
+            self.bg_game = pygame.transform.scale(self.bg_game, (SCREEN_WIDTH, SCREEN_HEIGHT))
+            
+            # Загружаем спрайты игрока для разных состояний
+            self.player_sprites = {}
+            self.player_sprites[StudentActivity.NORMAL] = pygame.image.load("assets/player-sit.png")
+            self.player_sprites[StudentActivity.CHEAT] = pygame.image.load("assets/player-cheating.png")
+            self.player_sprites[StudentActivity.GAMES] = pygame.image.load("assets/player-game.png")
+            self.player_sprites[StudentActivity.SLEEP] = pygame.image.load("assets/player-sleep.png")
+            self.player_sprites[StudentActivity.EAT] = pygame.image.load("assets/player-eat.png")
+            
+            # Масштабируем спрайты игрока до нужного размера (примерно 60x80 пикселей)
+            player_width = 220
+            player_height = 240
+            for activity in self.player_sprites:
+                self.player_sprites[activity] = pygame.transform.scale(self.player_sprites[activity], (player_width, player_height))
+                
+        except FileNotFoundError as e:
+            print(f"[WARNING] Не удалось загрузить изображение: {e}")
+            # Если файлы не найдены, используем None (будут рисованы градиенты и фигуры)
+            self.bg_start_menu = None
+            self.bg_game = None
+            self.player_sprites = {}
     
     def load_best_score(self):
         """Загрузить лучший счет из файла"""
@@ -440,13 +484,17 @@ class Game:
     
     def draw_main_menu(self):
         """Отрисовать главное меню"""
-        # Градиентный фон
-        for y in range(SCREEN_HEIGHT):
-            color_val = int(UTM_PURPLE[0] + (UTM_DARK_PURPLE[0] - UTM_PURPLE[0]) * y / SCREEN_HEIGHT)
-            pygame.draw.line(self.screen, 
-                           (color_val, int(UTM_PURPLE[1] + (UTM_DARK_PURPLE[1] - UTM_PURPLE[1]) * y / SCREEN_HEIGHT), 
-                            int(UTM_PURPLE[2] + (UTM_DARK_PURPLE[2] - UTM_PURPLE[2]) * y / SCREEN_HEIGHT)),
-                           (0, y), (SCREEN_WIDTH, y))
+        # Используем фоновое изображение если загружено, иначе градиент
+        if self.bg_start_menu:
+            self.screen.blit(self.bg_start_menu, (0, 0))
+        else:
+            # Резервный градиентный фон
+            for y in range(SCREEN_HEIGHT):
+                color_val = int(UTM_PURPLE[0] + (UTM_DARK_PURPLE[0] - UTM_PURPLE[0]) * y / SCREEN_HEIGHT)
+                pygame.draw.line(self.screen, 
+                               (color_val, int(UTM_PURPLE[1] + (UTM_DARK_PURPLE[1] - UTM_PURPLE[1]) * y / SCREEN_HEIGHT), 
+                                int(UTM_PURPLE[2] + (UTM_DARK_PURPLE[2] - UTM_PURPLE[2]) * y / SCREEN_HEIGHT)),
+                               (0, y), (SCREEN_WIDTH, y))
         
         # Заголовок (большой)
         title = self.font_large.render("UTM CHEATING", True, UTM_GOLD)
@@ -506,16 +554,20 @@ class Game:
     
     def draw_game(self):
         """Отрисовать игровой экран"""
-        # Красивый фон
-        self.screen.fill(CREAM)
-        
-        # Градиент неба
-        for y in range(SCREEN_HEIGHT // 2):
-            color_val = int(LIGHT_BLUE[0] + (CREAM[0] - LIGHT_BLUE[0]) * y / (SCREEN_HEIGHT // 2))
-            pygame.draw.line(self.screen, 
-                           (color_val, int(LIGHT_BLUE[1] + (CREAM[1] - LIGHT_BLUE[1]) * y / (SCREEN_HEIGHT // 2)), 
-                            int(LIGHT_BLUE[2] + (CREAM[2] - LIGHT_BLUE[2]) * y / (SCREEN_HEIGHT // 2))),
-                           (0, y), (SCREEN_WIDTH, y))
+        # Используем фоновое изображение если загружено, иначе рисуем градиент
+        if self.bg_game:
+            self.screen.blit(self.bg_game, (0, 0))
+        else:
+            # Резервный красивый фон
+            self.screen.fill(CREAM)
+            
+            # Градиент неба
+            for y in range(SCREEN_HEIGHT // 2):
+                color_val = int(LIGHT_BLUE[0] + (CREAM[0] - LIGHT_BLUE[0]) * y / (SCREEN_HEIGHT // 2))
+                pygame.draw.line(self.screen, 
+                               (color_val, int(LIGHT_BLUE[1] + (CREAM[1] - LIGHT_BLUE[1]) * y / (SCREEN_HEIGHT // 2)), 
+                                int(LIGHT_BLUE[2] + (CREAM[2] - LIGHT_BLUE[2]) * y / (SCREEN_HEIGHT // 2))),
+                               (0, y), (SCREEN_WIDTH, y))
         
         # Мобильный макет (вертикальный)
         # Парта учителя (вверху, маленькая)
@@ -533,7 +585,7 @@ class Game:
         self.teacher.y = max(SAFE_TOP + 30, min(SAFE_BOTTOM - 80, 250))
         
         # Рисуем персонажей
-        self.student.draw(self.screen)
+        self.student.draw(self.screen, self.player_sprites)
         self.teacher.draw(self.screen)
         
         # UI сверху
@@ -738,14 +790,15 @@ class Game:
                     self.add_message(messages.get(button.action, ""), 120)
                 
                 elif button.action == "normal":
-                    # "УЧИТЬ" - прерывает любое действие
+                    # "ОТМЕНИТЬ" - прерывает любое действие
                     if self.student.activity_duration > 0:
-                        self.add_message("[STOP] Остановила запрещённое действие!", 100)
+                        self.add_message("[STOP] Остановила текущее действие!", 100)
+                    else:
+                        self.add_message("[INFO] Нет активного действия для отмены", 100)
                     
                     self.student.current_activity = StudentActivity.NORMAL
                     self.student.activity_duration = 0
                     self.student.activity_timer = 0
-                    self.add_message("[STUDY] Решаю задачу как положено...", 120)
                 break
     
     def handle_click(self, pos: Tuple[int, int]):
