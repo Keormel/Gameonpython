@@ -39,8 +39,8 @@ BLUE = (50, 100, 200)
 LIGHT_BLUE = (100, 150, 255)
 YELLOW = (255, 220, 0)
 ORANGE = (255, 140, 0)
-UTM_PURPLE = (102, 51, 153)
-UTM_DARK_PURPLE = (70, 35, 105)
+UTM_PURPLE = (23, 55, 94)
+UTM_DARK_PURPLE = (23, 55, 94)
 UTM_GOLD = (255, 184, 28)
 SKIN = (255, 220, 177)
 LIGHT_BROWN = (180, 140, 100)
@@ -77,12 +77,6 @@ class Student:
     activity_progress: int = 0  # 0-100
     activity_timer: int = 0
     activity_duration: int = 0  # Длительность в кадрах
-    
-    # Счётчики использования каждого действия (по 1 разу)
-    cheat_used: bool = False
-    games_used: bool = False
-    sleep_used: bool = False
-    eat_used: bool = False
     
     # Длительности активностей (в кадрах при 60 FPS)
     ACTIVITY_DURATIONS = {
@@ -344,8 +338,8 @@ class Game:
             self.teacher_sprites['watch'] = pygame.image.load("assets/enemy-watch.png")
             
             # Масштабируем спрайты учителя до нужного размера
-            teacher_width = 220
-            teacher_height = 260
+            teacher_width = 280
+            teacher_height = 330
             for state in self.teacher_sprites:
                 self.teacher_sprites[state] = pygame.transform.scale(self.teacher_sprites[state], (teacher_width, teacher_height))
                 
@@ -459,26 +453,11 @@ class Game:
         self.update_button_labels()
     
     def update_button_labels(self):
-        """Обновить текст кнопок в зависимости от использованности"""
-        if self.student.cheat_used:
-            self.buttons[0].text = "\nСПИСАТЬ\nиспользовано"
-        else:
-            self.buttons[0].text = "\nСПИСАТЬ\n3 сек"
-        
-        if self.student.games_used:
-            self.buttons[1].text = "\nИГРАТЬ\nиспользовано"
-        else:
-            self.buttons[1].text = "\nИГРАТЬ\n2 сек"
-        
-        if self.student.sleep_used:
-            self.buttons[2].text = "\nСПАТЬ\nиспользовано"
-        else:
-            self.buttons[2].text = "nСПАТЬ\n4 сек"
-        
-        if self.student.eat_used:
-            self.buttons[3].text = "\nЕСТЬ\nиспользовано"
-        else:
-            self.buttons[3].text = "\nЕСТЬ\n2.5 сек"
+        """Обновить текст кнопок"""
+        self.buttons[0].text = "\nСПИСАТЬ\n3 сек"
+        self.buttons[1].text = "\nИГРАТЬ\n2 сек"
+        self.buttons[2].text = "\nСПАТЬ\n4 сек"
+        self.buttons[3].text = "\nЕСТЬ\n2.5 сек"
     
     def start_game(self):
         """Начать новую игру"""
@@ -561,13 +540,17 @@ class Game:
     
     def draw_difficulty_menu(self):
         """Отрисовать меню выбора сложности"""
-        # Градиентный фон
-        for y in range(SCREEN_HEIGHT):
-            color_val = int(UTM_DARK_PURPLE[0] + (UTM_PURPLE[0] - UTM_DARK_PURPLE[0]) * y / SCREEN_HEIGHT)
-            pygame.draw.line(self.screen, 
-                           (color_val, int(UTM_DARK_PURPLE[1] + (UTM_PURPLE[1] - UTM_DARK_PURPLE[1]) * y / SCREEN_HEIGHT), 
-                            int(UTM_DARK_PURPLE[2] + (UTM_PURPLE[2] - UTM_DARK_PURPLE[2]) * y / SCREEN_HEIGHT)),
-                           (0, y), (SCREEN_WIDTH, y))
+        # Используем фоновое изображение если загружено, иначе градиент
+        if self.bg_start_menu:
+            self.screen.blit(self.bg_start_menu, (0, 0))
+        else:
+            # Резервный градиентный фон
+            for y in range(SCREEN_HEIGHT):
+                color_val = int(UTM_DARK_PURPLE[0] + (UTM_PURPLE[0] - UTM_DARK_PURPLE[0]) * y / SCREEN_HEIGHT)
+                pygame.draw.line(self.screen, 
+                               (color_val, int(UTM_DARK_PURPLE[1] + (UTM_PURPLE[1] - UTM_DARK_PURPLE[1]) * y / SCREEN_HEIGHT), 
+                                int(UTM_DARK_PURPLE[2] + (UTM_PURPLE[2] - UTM_DARK_PURPLE[2]) * y / SCREEN_HEIGHT)),
+                               (0, y), (SCREEN_WIDTH, y))
         
         # Заголовок
         title = self.font_large.render("ВЫБЕРИ СЛОЖНОСТЬ", True, UTM_GOLD)
@@ -601,18 +584,18 @@ class Game:
         
         # Мобильный макет (вертикальный)
         # Парта учителя (вверху, маленькая)
-        pygame.draw.rect(self.screen, LIGHT_BROWN, (SCREEN_WIDTH - 130, 200, 120, 90))
-        pygame.draw.rect(self.screen, BLACK, (SCREEN_WIDTH - 130, 200, 120, 90), 2)
+        # pygame.draw.rect(self.screen, LIGHT_BROWN, (SCREEN_WIDTH - 130, 200, 120, 90))
+        # pygame.draw.rect(self.screen, BLACK, (SCREEN_WIDTH - 130, 200, 120, 90), 2)
         
-        # Парта студента (ниже, поближе к кнопкам)
-        pygame.draw.rect(self.screen, (200, 150, 100), (15, 600, 510, 120))
-        pygame.draw.rect(self.screen, BLACK, (15, 600, 510, 120), 2)
+        # # Парта студента (ниже, поближе к кнопкам)
+        # pygame.draw.rect(self.screen, (200, 150, 100), (15, 600, 510, 120))
+        # pygame.draw.rect(self.screen, BLACK, (15, 600, 510, 120), 2)
         
         # Позиции персонажей с ограничениями
         self.student.x = max(SAFE_LEFT + 30, min(SAFE_RIGHT - 30, SCREEN_WIDTH // 2))
         self.student.y = max(SAFE_TOP + 30, min(SAFE_BOTTOM - 60, 650))
         self.teacher.x = max(SAFE_LEFT + 30, min(SAFE_RIGHT - 30, SCREEN_WIDTH - 70))
-        self.teacher.y = max(SAFE_TOP + 30, min(SAFE_BOTTOM - 80, 250))
+        self.teacher.y = max(SAFE_TOP + 30, min(SAFE_BOTTOM - 80, 400))
         
         # Рисуем персонажей
         self.student.draw(self.screen, self.player_sprites)
@@ -632,7 +615,7 @@ class Game:
         """Отрисовать UI элементы"""
         # Мобильный UI - компактнее
         # Фон для информации
-        pygame.draw.rect(self.screen, UTM_DARK_PURPLE, (0, 0, SCREEN_WIDTH, 100))
+        pygame.draw.rect(self.screen, (23, 55, 94), (0, 0, SCREEN_WIDTH, 100))
         pygame.draw.line(self.screen, UTM_GOLD, (0, 100), (SCREEN_WIDTH, 100), 2)
         
         # Очки (слева)
@@ -761,14 +744,6 @@ class Game:
     
     def handle_game_click(self, pos: Tuple[int, int]):
         """Обработить клик в игре"""
-        if self.teacher.looking_at_student:
-            # Если студент в процессе выполнения активности и учитель смотрит - поймали
-            if self.student.activity_duration > 0:
-                self.update_best_score(self.score)
-                self.add_message("[CAUGHT] ПОЙМАНА! Учитель заметил!", 180)
-                self.state = GameState.GAME_OVER
-            return
-        
         for button in self.buttons:
             if button.is_clicked(pos) and button.action:
                 # Маппинг кнопок на активности
@@ -781,50 +756,29 @@ class Game:
                 
                 if button.action in action_map:
                     target_activity = action_map[button.action]
-                    used_flags = {
-                        "cheat": self.student.cheat_used,
-                        "games": self.student.games_used,
-                        "sleep": self.student.sleep_used,
-                        "eat": self.student.eat_used,
-                    }
-                    
-                    # Проверяем, использовалось ли это действие уже
-                    if used_flags.get(button.action, False):
-                        self.add_message("[ERROR] Это действие уже использовано!", 100)
-                        break
                     
                     # Если было активное действие - прерываем его
                     if self.student.activity_duration > 0:
                         self.add_message("[WARNING] Прервала предыдущее действие!", 100)
                     
-                    # Помечаем действие как использованное
-                    if button.action == "cheat":
-                        self.student.cheat_used = True
-                    elif button.action == "games":
-                        self.student.games_used = True
-                    elif button.action == "sleep":
-                        self.student.sleep_used = True
-                    elif button.action == "eat":
-                        self.student.eat_used = True
-                    
                     # Начинаем новое действие
                     self.student.start_activity(target_activity)
                     
                     # Сообщения
-                    messages = {
-                        "cheat": "[CHEAT] Начала списывать ответ! (3 сек)",
-                        "games": "[GAMES] Начала играть в телефон! (2 сек)",
-                        "sleep": "[SLEEP] Начала спать! (4 сек)",
-                        "eat": "[EAT] Начала есть! (2.5 сек)",
-                    }
-                    self.add_message(messages.get(button.action, ""), 120)
+                    # messages = {
+                    #     "cheat": "[CHEAT] Начала списывать ответ! (3 сек)",
+                    #     "games": "[GAMES] Начала играть в телефон! (2 сек)",
+                    #     "sleep": "[SLEEP] Начала спать! (4 сек)",
+                    #     "eat": "[EAT] Начала есть! (2.5 сек)",
+                    # }
+                    # self.add_message(messages.get(button.action, ""), 120)
                 
                 elif button.action == "normal":
                     # "ОТМЕНИТЬ" - прерывает любое действие
-                    if self.student.activity_duration > 0:
-                        self.add_message("[STOP] Остановила текущее действие!", 100)
-                    else:
-                        self.add_message("[INFO] Нет активного действия для отмены", 100)
+                    # if self.student.activity_duration > 0:
+                    #     self.add_message("[STOP] Остановила текущее действие!", 100)
+                    # else:
+                    #     self.add_message("[INFO] Нет активного действия для отмены", 100)
                     
                     self.student.current_activity = StudentActivity.NORMAL
                     self.student.activity_duration = 0
