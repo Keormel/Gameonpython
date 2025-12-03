@@ -142,11 +142,11 @@ class Student:
         
         # Иконка текущей активности над головой
         icons = {
-            StudentActivity.NORMAL: "[STUDY]",
-            StudentActivity.CHEAT: "[CHEAT]",
-            StudentActivity.GAMES: "[GAMES]",
-            StudentActivity.SLEEP: "[SLEEP]",
-            StudentActivity.EAT: "[EAT]",
+            # StudentActivity.NORMAL: "[STUDY]",
+            # StudentActivity.CHEAT: "[CHEAT]",
+            # StudentActivity.GAMES: "[GAMES]",
+            # StudentActivity.SLEEP: "[SLEEP]",
+            # StudentActivity.EAT: "[EAT]",
         }
         
         icon = icons.get(self.current_activity, "")
@@ -179,34 +179,52 @@ class Teacher:
     look_timer: int = 0
     look_duration: int = 0
     
-    def draw(self, screen: pygame.Surface):
+    def draw(self, screen: pygame.Surface, teacher_sprites: dict = None):
         """Нарисовать учителя"""
-        # Голова
-        pygame.draw.circle(screen, LIGHT_BROWN, (int(self.x), int(self.y - 25)), 15)
+        # Если есть спрайты, используем их
+        if teacher_sprites and teacher_sprites:
+            # Выбираем спрайт в зависимости от состояния
+            sprite_key = 'watch' if self.looking_at_student else 'sleep'
+            if sprite_key in teacher_sprites:
+                sprite = teacher_sprites[sprite_key]
+                # Центруем спрайт по позиции учителя
+                sprite_rect = sprite.get_rect(center=(int(self.x), int(self.y + 10)))
+                screen.blit(sprite, sprite_rect)
+            else:
+                # Резервное рисование если спрайта нет
+                self._draw_fallback(screen)
+        else:
+            # Резервное рисование фигурой
+            self._draw_fallback(screen)
         
-        # Туловище
-        pygame.draw.rect(screen, (139, 69, 19), (int(self.x - 20), int(self.y), 40, 50))
+        # Указатель внимания (красный кружок если смотрит)
+        # if self.looking_at_student:
+        #     pygame.draw.circle(screen, RED, (int(self.x), int(self.y - 50)), 12, 3)
+    
+    # def _draw_fallback(self, screen: pygame.Surface):
+    #     """Резервная отрисовка учителя геометрическими фигурами"""
+    #     # Голова
+    #     pygame.draw.circle(screen, LIGHT_BROWN, (int(self.x), int(self.y - 25)), 15)
         
-        # Руки
-        pygame.draw.line(screen, LIGHT_BROWN, (int(self.x - 20), int(self.y + 10)), 
-                        (int(self.x - 40), int(self.y + 15)), 5)
-        pygame.draw.line(screen, LIGHT_BROWN, (int(self.x + 20), int(self.y + 10)), 
-                        (int(self.x + 40), int(self.y + 15)), 5)
+    #     # Туловище
+    #     pygame.draw.rect(screen, (139, 69, 19), (int(self.x - 20), int(self.y), 40, 50))
         
-        # Ноги
-        pygame.draw.line(screen, DARK_GRAY, (int(self.x - 10), int(self.y + 50)), 
-                        (int(self.x - 10), int(self.y + 80)), 4)
-        pygame.draw.line(screen, DARK_GRAY, (int(self.x + 10), int(self.y + 50)), 
-                        (int(self.x + 10), int(self.y + 80)), 4)
+    #     # Руки
+    #     pygame.draw.line(screen, LIGHT_BROWN, (int(self.x - 20), int(self.y + 10)), 
+    #                     (int(self.x - 40), int(self.y + 15)), 5)
+    #     pygame.draw.line(screen, LIGHT_BROWN, (int(self.x + 20), int(self.y + 10)), 
+    #                     (int(self.x + 40), int(self.y + 15)), 5)
         
-        # Глаза - если смотрит на студента, то красные
-        eye_color = RED if self.looking_at_student else BLACK
-        pygame.draw.circle(screen, eye_color, (int(self.x - 7), int(self.y - 28)), 4)
-        pygame.draw.circle(screen, eye_color, (int(self.x + 7), int(self.y - 28)), 4)
+    #     # Ноги
+    #     pygame.draw.line(screen, DARK_GRAY, (int(self.x - 10), int(self.y + 50)), 
+    #                     (int(self.x - 10), int(self.y + 80)), 4)
+    #     pygame.draw.line(screen, DARK_GRAY, (int(self.x + 10), int(self.y + 50)), 
+    #                     (int(self.x + 10), int(self.y + 80)), 4)
         
-        # Указатель внимания
-        if self.looking_at_student:
-            pygame.draw.circle(screen, RED, (int(self.x), int(self.y - 50)), 12, 3)
+    #     # Глаза - если смотрит на студента, то красные
+    #     eye_color = RED if self.looking_at_student else BLACK
+    #     pygame.draw.circle(screen, eye_color, (int(self.x - 7), int(self.y - 28)), 4)
+    #     pygame.draw.circle(screen, eye_color, (int(self.x + 7), int(self.y - 28)), 4)
 
 class Button:
     def __init__(self, x: int, y: int, width: int, height: int, text: str, action: Optional[str] = None):
@@ -285,8 +303,8 @@ class Game:
         self.difficulty_settings = {
             Difficulty.EASY: {"time": 30, "chance": 15, "name": "ЛЕГКИЙ", "description": "30 сек, 15% риск"},
             Difficulty.MEDIUM: {"time": 45, "chance": 30, "name": "СРЕДНИЙ", "description": "45 сек, 30% риск"},
-            Difficulty.HARD: {"time": 45, "chance": 40, "name": "СЛОЖНЫЙ", "description": "45 сек, 40% риск"},
-            Difficulty.IMPOSSIBLE: {"time": 50, "chance": 50, "name": "НЕВОЗМОЖНЫЙ", "description": "50 сек, 50% риск"},
+            Difficulty.HARD: {"time": 50, "chance": 40, "name": "СЛОЖНЫЙ", "description": "45 сек, 40% риск"},
+            Difficulty.IMPOSSIBLE: {"time": 60, "chance": 50, "name": "НЕВОЗМОЖНЫЙ", "description": "50 сек, 50% риск"},
         }
         
         # Лучший счет игрока
@@ -319,6 +337,17 @@ class Game:
             player_height = 240
             for activity in self.player_sprites:
                 self.player_sprites[activity] = pygame.transform.scale(self.player_sprites[activity], (player_width, player_height))
+            
+            # Загружаем спрайты учителя для разных состояний
+            self.teacher_sprites = {}
+            self.teacher_sprites['sleep'] = pygame.image.load("assets/enemy-sleep.png")
+            self.teacher_sprites['watch'] = pygame.image.load("assets/enemy-watch.png")
+            
+            # Масштабируем спрайты учителя до нужного размера
+            teacher_width = 220
+            teacher_height = 260
+            for state in self.teacher_sprites:
+                self.teacher_sprites[state] = pygame.transform.scale(self.teacher_sprites[state], (teacher_width, teacher_height))
                 
         except FileNotFoundError as e:
             print(f"[WARNING] Не удалось загрузить изображение: {e}")
@@ -326,6 +355,7 @@ class Game:
             self.bg_start_menu = None
             self.bg_game = None
             self.player_sprites = {}
+            self.teacher_sprites = {}
     
     def load_best_score(self):
         """Загрузить лучший счет из файла"""
@@ -586,7 +616,7 @@ class Game:
         
         # Рисуем персонажей
         self.student.draw(self.screen, self.player_sprites)
-        self.teacher.draw(self.screen)
+        self.teacher.draw(self.screen, self.teacher_sprites)
         
         # UI сверху
         self.draw_ui()
