@@ -101,11 +101,14 @@ class Student:
             self.activity_timer += 1
             self.activity_progress = int((self.activity_timer / self.activity_duration) * 100)
             return False  # Активность ещё выполняется
-        else:
+        elif self.activity_duration > 0:
+            # Активность завершена - полностью прерываем её
             self.current_activity = StudentActivity.NORMAL
             self.activity_progress = 0
             self.activity_timer = 0
+            self.activity_duration = 0  # Очищаем длительность
             return True  # Активность завершена
+        return False
     
     def draw(self, screen: pygame.Surface, player_sprites: dict = None):
         """Нарисовать студента"""
@@ -832,12 +835,12 @@ class Game:
                 if button.action in action_map:
                     target_activity = action_map[button.action]
                     
-                    # Если было активное действие - прерываем его
-                    if self.student.activity_duration > 0:
-                        self.add_message("[WARNING] Прервала предыдущее действие!", 100)
-                    
-                    # Начинаем новое действие
-                    self.student.start_activity(target_activity)
+                    # Только начинаем действие если студент в нормальном состоянии
+                    if self.student.current_activity == StudentActivity.NORMAL:
+                        self.student.start_activity(target_activity)
+                    else:
+                        # Если есть активное действие - показываем предупреждение
+                        self.add_message("[WARNING] Заверши текущее действие!", 100)
                     
                     # Сообщения
                     # messages = {
