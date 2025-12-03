@@ -53,6 +53,7 @@ class GameState(Enum):
     GAME = 3
     GAME_OVER = 4
     WIN = 5
+    RULES_MENU = 6
 
 class StudentActivity(Enum):
     NORMAL = 1
@@ -565,6 +566,70 @@ class Game:
         for button in self.buttons:
             button.draw(self.screen, self.font_small)
     
+    def draw_rules_menu(self):
+        """Отрисовать меню с правилами"""
+        # Используем фоновое изображение если загружено, иначе градиент
+        if self.bg_start_menu:
+            self.screen.blit(self.bg_start_menu, (0, 0))
+        else:
+            # Резервный градиентный фон
+            for y in range(SCREEN_HEIGHT):
+                color_val = int(UTM_DARK_PURPLE[0] + (UTM_PURPLE[0] - UTM_DARK_PURPLE[0]) * y / SCREEN_HEIGHT)
+                pygame.draw.line(self.screen, 
+                               (color_val, int(UTM_DARK_PURPLE[1] + (UTM_PURPLE[1] - UTM_DARK_PURPLE[1]) * y / SCREEN_HEIGHT), 
+                                int(UTM_DARK_PURPLE[2] + (UTM_PURPLE[2] - UTM_DARK_PURPLE[2]) * y / SCREEN_HEIGHT)),
+                               (0, y), (SCREEN_WIDTH, y))
+        
+        # Заголовок
+        title = self.font_large.render("ПРАВИЛА", True, UTM_GOLD)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 80))
+        self.screen.blit(title, title_rect)
+        
+        # Декоративная линия
+        pygame.draw.line(self.screen, UTM_GOLD, (SCREEN_WIDTH // 2 - 80, 130), 
+                        (SCREEN_WIDTH // 2 + 80, 130), 2)
+        
+        # Текст правил
+        rules_text = [
+            "короче, читы-бан,",
+            "кемперство - бан,",
+            "оскорбления - бан,",
+            "оскорбление администрации -",
+            "расстрел, потом бан.",
+            "всем удачи."
+        ]
+        
+        # Фон для текста правил
+        bg_box_height = 280
+        bg_box_y = 160
+        bg_box_rect = pygame.Rect(20, bg_box_y, SCREEN_WIDTH - 40, bg_box_height)
+        pygame.draw.rect(self.screen, (0, 0, 0, 100), bg_box_rect, border_radius=15)
+        pygame.draw.rect(self.screen, UTM_GOLD, bg_box_rect, 3, border_radius=15)
+        
+        # Текст правил внутри фона
+        y_pos = 190
+        for line in rules_text:
+            text_surface = self.font_small.render(line, True, WHITE)
+            text_rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, y_pos))
+            self.screen.blit(text_surface, text_rect)
+            y_pos += 40
+        
+        # Кнопка назад внизу
+        # Обновляем первую кнопку в списке для использования как кнопка "назад"
+        if self.buttons and self.buttons[0].text != "← НАЗАД":
+            self.buttons[0].text = "← НАЗАД"
+            self.buttons[0].action = "back_to_menu"
+            # Переразмещаем кнопку внизу
+            button_width = 150
+            button_height = 60
+            button_x = (SCREEN_WIDTH - button_width) // 2
+            button_y = SCREEN_HEIGHT - 100
+            self.buttons[0].rect = pygame.Rect(button_x, button_y, button_width, button_height)
+        
+        # Рисуем кнопку назад
+        if self.buttons:
+            self.buttons[0].draw(self.screen, self.font_small)
+    
     def draw_game(self):
         """Отрисовать игровой экран"""
         # Используем фоновое изображение если загружено, иначе рисуем градиент
@@ -718,9 +783,19 @@ class Game:
                     self.state = GameState.DIFFICULTY_MENU
                     self.create_difficulty_buttons()
                 elif button.action == "rules":
-                    self.add_message("[RULES] Правила: Скрывай активности! Если учитель увидит - ты поймана! [RULES]", 240)
+                    self.state = GameState.RULES_MENU
+                    self.create_menu_buttons()  # Для кнопки "Назад"
                 elif button.action == "exit":
                     return False
+        return True
+    
+    def handle_rules_click(self, pos: Tuple[int, int]):
+        """Обработить клик в меню правил"""
+        for button in self.buttons:
+            if button.is_clicked(pos):
+                if button.action == "back_to_menu" or button.action == "back":
+                    self.state = GameState.MAIN_MENU
+                    self.create_menu_buttons()
         return True
     
     def handle_difficulty_click(self, pos: Tuple[int, int]):
@@ -789,6 +864,8 @@ class Game:
         """Обработить клик мыши"""
         if self.state == GameState.MAIN_MENU:
             return self.handle_menu_click(pos)
+        elif self.state == GameState.RULES_MENU:
+            return self.handle_rules_click(pos)
         elif self.state == GameState.DIFFICULTY_MENU:
             return self.handle_difficulty_click(pos)
         elif self.state == GameState.GAME:
@@ -878,6 +955,8 @@ class Game:
             self.draw_main_menu()
         elif self.state == GameState.DIFFICULTY_MENU:
             self.draw_difficulty_menu()
+        elif self.state == GameState.RULES_MENU:
+            self.draw_rules_menu()
         elif self.state == GameState.GAME:
             self.draw_game()
         elif self.state == GameState.GAME_OVER:
