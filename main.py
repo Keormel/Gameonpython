@@ -176,6 +176,7 @@ class Teacher:
     looking_at_student: bool = False
     look_timer: int = 0
     look_duration: int = 0
+    warning_timer: int = 0  # Таймер для отображения предупреждающего знака
     
     def draw(self, screen: pygame.Surface, teacher_sprites: dict = None):
         """Нарисовать учителя"""
@@ -195,9 +196,26 @@ class Teacher:
             # Резервное рисование фигурой
             self._draw_fallback(screen)
         
+        # Рисовать предупреждающий знак если учитель начал смотреть
+        self.draw_warning_sign(screen)
+        
         # Указатель внимания (красный кружок если смотрит)
         # if self.looking_at_student:
         #     pygame.draw.circle(screen, RED, (int(self.x), int(self.y - 50)), 12, 3)
+    
+    def draw_warning_sign(self, screen: pygame.Surface):
+        """Нарисовать предупреждающий знак ⚠️ когда учитель смотрит"""
+        if self.warning_timer > 0:
+            # Использовать шрифт для отображения знака
+            font_size = 80
+            font = pygame.font.Font(None, font_size)
+            
+            # Частота мигания (мигает каждые 10 кадров)
+            if (self.warning_timer // 12) % 2 == 0:
+                # Отрисовать предупреждающий знак рядом с учителем (выше и левее)
+                warning_text = font.render("!", True, ORANGE)
+                text_rect = warning_text.get_rect(center=(int(self.x - 80), int(self.y - 80)))
+                screen.blit(warning_text, text_rect)
     
     # def _draw_fallback(self, screen: pygame.Surface):
     #     """Резервная отрисовка учителя геометрическими фигурами"""
@@ -490,6 +508,9 @@ class Game:
         look_duration = random.randint(60, 180)
         self.teacher.look_timer = delay * FPS
         self.teacher.look_duration = look_duration
+        # Активировать предупреждающий знак ТОЛЬКО в последнюю секунду (60 кадров = 1 сек перед взглядом)
+        # Если delay больше 1 сек, показываем предупреждение только в конце
+        self.teacher.warning_timer = 60  # Мигает только последнюю 1 секунду перед взглядом
     
     def add_message(self, text: str, duration: int = 120):
         """Добавить сообщение на экран"""
@@ -927,6 +948,11 @@ class Game:
             # Обновить состояние учителя
             if self.teacher.look_timer > 0:
                 self.teacher.look_timer -= 1
+                # Активировать предупреждающий знак когда осталось 1 секунда до взгляда
+                if self.teacher.look_timer <= 60 and self.teacher.look_timer > 0:
+                    self.teacher.warning_timer = self.teacher.look_timer
+                else:
+                    self.teacher.warning_timer = 0
             else:
                 # Проверить вероятность того, что учитель посмотрит
                 if random.randint(1, 100) <= self.teacher_look_chance:
