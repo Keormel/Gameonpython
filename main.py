@@ -1014,7 +1014,7 @@ class Game:
             if self.time_remaining <= 0:
                 self.update_best_score(self.score)
                 self.state = GameState.WIN
-                self.music_manager.stop_background_music()
+                self.music_manager.stop_all_music()
                 self.music_manager.play_win_music()
                 self.add_message("[WIN] Время вышло! Ты выжил!", 240)
                 return
@@ -1038,7 +1038,7 @@ class Game:
                         self.update_best_score(self.score)
                         self.add_message("[CAUGHT] ПОЙМАНА! Учитель заметил активность!", 180)
                         self.state = GameState.GAME_OVER
-                        self.music_manager.stop_background_music()
+                        self.music_manager.stop_all_music()
                         self.music_manager.play_game_over_music()
                         return
                 
