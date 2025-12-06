@@ -9,6 +9,7 @@ from typing import List, Tuple, Optional
 
 # Инициализация Pygame
 pygame.init()
+pygame.mixer.init()
 
 # Константы - мобильный формат 9:16 (540x960)
 SCREEN_WIDTH = 540
@@ -46,6 +47,69 @@ SKIN = (255, 220, 177)
 LIGHT_BROWN = (180, 140, 100)
 CREAM = (250, 248, 245)
 DARK_CREAM = (240, 235, 225)
+
+class MusicManager:
+    """Менеджер для управления музыкой в игре"""
+    def __init__(self):
+        self.music_folder = "mp3"
+        self.current_music = None
+        self.background_music = None
+        self.game_over_played = False
+        self.win_played = False
+        
+        # Загружаем музыку
+        self.load_music()
+    
+    def load_music(self):
+        """Загрузить все музыкальные файлы"""
+        try:
+            self.background_music = pygame.mixer.Sound(os.path.join(self.music_folder, "game.mp3"))
+            self.game_over_music = pygame.mixer.Sound(os.path.join(self.music_folder, "gameover.mp3"))
+            self.win_music = pygame.mixer.Sound(os.path.join(self.music_folder, "winer.mp3"))
+        except Exception as e:
+            print(f"[WARNING] Не удалось загрузить музыку: {e}")
+            self.background_music = None
+            self.game_over_music = None
+            self.win_music = None
+    
+    def play_background_music(self):
+        """Проигрывать фоновую музыку в цикле"""
+        if self.background_music:
+            try:
+                self.background_music.play(-1)  # -1 означает бесконечный цикл
+                self.current_music = "background"
+            except Exception as e:
+                print(f"[WARNING] Ошибка при проигрывании фоновой музыки: {e}")
+    
+    def play_game_over_music(self):
+        """Проиграть музыку проигрыша один раз"""
+        if self.game_over_music and not self.game_over_played:
+            try:
+                self.game_over_music.play(0)  # 0 означает проиграть один раз
+                self.current_music = "game_over"
+                self.game_over_played = True
+            except Exception as e:
+                print(f"[WARNING] Ошибка при проигрывании музыки проигрыша: {e}")
+    
+    def play_win_music(self):
+        """Проиграть музыку победы один раз"""
+        if self.win_music and not self.win_played:
+            try:
+                self.win_music.play(0)  # 0 означает проиграть один раз
+                self.current_music = "win"
+                self.win_played = True
+            except Exception as e:
+                print(f"[WARNING] Ошибка при проигрывании музыки победы: {e}")
+    
+    def stop_all_music(self):
+        """Остановить всю музыку"""
+        pygame.mixer.stop()
+        self.current_music = None
+    
+    def reset_one_time_flags(self):
+        """Сбросить флаги для музыки, которая должна проиграться один раз"""
+        self.game_over_played = False
+        self.win_played = False
 
 class GameState(Enum):
     MAIN_MENU = 1
@@ -297,6 +361,9 @@ class Game:
         self.font_medium = pygame.font.Font(None, 32)
         self.font_small = pygame.font.Font(None, 24)
         
+        # Инициализация музыки
+        self.music_manager = MusicManager()
+        
         # Загрузка изображений
         self.bg_start_menu = None
         self.bg_game = None
@@ -329,7 +396,7 @@ class Game:
         self.load_best_score()
         
         self.create_menu_buttons()
-    
+
     def load_images(self):
         """Загрузить изображения из assets папки"""
         try:
@@ -496,6 +563,10 @@ class Game:
         
         self.messages = []
         self.create_game_buttons()
+        
+        # Сбросить флаги музыки и проигрывать фоновую музыку
+        self.music_manager.reset_one_time_flags()
+        self.music_manager.play_background_music()
         
         difficulty_name = settings["name"]
         self.add_message(f"{difficulty_name} уровень! Списывай и не попадайся!", 120)
@@ -903,6 +974,7 @@ class Game:
         if key == pygame.K_RETURN:
             if self.state in [GameState.GAME_OVER, GameState.WIN]:
                 self.state = GameState.MAIN_MENU
+                self.music_manager.stop_all_music()
                 self.create_menu_buttons()
     
     def update(self):
@@ -942,6 +1014,8 @@ class Game:
             if self.time_remaining <= 0:
                 self.update_best_score(self.score)
                 self.state = GameState.WIN
+                self.music_manager.stop_background_music()
+                self.music_manager.play_win_music()
                 self.add_message("[WIN] Время вышло! Ты выжил!", 240)
                 return
             
@@ -964,6 +1038,8 @@ class Game:
                         self.update_best_score(self.score)
                         self.add_message("[CAUGHT] ПОЙМАНА! Учитель заметил активность!", 180)
                         self.state = GameState.GAME_OVER
+                        self.music_manager.stop_background_music()
+                        self.music_manager.play_game_over_music()
                         return
                 
                 if self.teacher.look_duration > 0:
